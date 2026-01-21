@@ -25,6 +25,7 @@ def plot_rr_v_delta(
 
     plt.tight_layout()
     plt.savefig(f"{plotdir}/replace_rate_and_delta.png")
+    plt.close(fig)
 
 
 def plot_xs(
@@ -63,6 +64,7 @@ def plot_xs(
             ax[k, 0].legend()
         plt.tight_layout()
         plt.savefig(f"{plotdir}/state_{d}.png")
+        plt.close(fig)
 
 
 def plot_ess(
@@ -83,6 +85,7 @@ def plot_ess(
     plt.legend()
     plt.tight_layout()
     plt.savefig(f"{plotdir}/ess.png")
+    plt.close(fig)
 
 
 def plot_traces(
@@ -104,6 +107,7 @@ def plot_traces(
             ax[k, d].set_xlabel("sample")
             plt.tight_layout()
             plt.savefig(f"{plotdir}/trace_plots.png")
+            plt.close()
 
 
 def plot_square_error(
