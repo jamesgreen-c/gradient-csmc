@@ -36,14 +36,14 @@ parser.set_defaults(plot=False)
 args = parser.parse_args()
 
 
-def results_exist(*, kernel, style, T, D, F, N, target, args) -> bool:
+def results_exist(*, kernel, style, T, D, N, target, args) -> bool:
     """
     Mirror experiment.py's experiment_name + datapath convention and check if results already exist.
     """
     TARGET_ALPHA = target / 100  # must match experiment.py convention
 
     experiment_name = (
-        "kernel={},samples={},burnin={},adaptation={},M={},T={},D={},F={},N={},style={},target={:.2f},"
+        "kernel={},samples={},burnin={},adaptation={},M={},T={},D={},N={},style={},target={:.2f},"
         "bpf_init={},resampling={},backward={},seed={}"
     ).format(
         kernel.name,   # kernel_type.name in experiment.py
@@ -53,7 +53,6 @@ def results_exist(*, kernel, style, T, D, F, N, target, args) -> bool:
         args.M,
         T,
         D,
-        F,
         N,
         style,
         TARGET_ALPHA,
@@ -72,18 +71,17 @@ styles = (args.style, )
 
 TS = (64, 128, 256)
 DS = (50, 100, 150)
-FS = (10, 20, 30)
 NS = (31, 255, 511)
 
 TARGETS = (25, 50, 75)
 
-combination = list(product(kernel_type, styles, TS, DS, FS, NS, TARGETS))
+combination = list(product(kernel_type, styles, TS, DS, NS, TARGETS))
 
-def build_cmd(script: str, kernel, style, T, D, F, N, target) -> str:
+def build_cmd(script: str, kernel, style, T, D, N, target) -> str:
     base = (
         f"python3 {script} "
         f"--target {target} --T {T} --kernel {kernel.value} --style {style} --D {D} "
-        f"--n-factors {F} --N {N} --adaptation {args.adaptation} --burnin {args.burnin} --n-samples {args.n_samples}"
+        f"--N {N} --adaptation {args.adaptation} --burnin {args.burnin} --n-samples {args.n_samples}"
     )
     return base if args.bpf_init else f"{base} --no-bpf-init"
 
@@ -93,18 +91,18 @@ if args.i != -1 and not (0 <= args.i < len(combination)):
 indices = range(len(combination)) if args.i == -1 else [args.i]
 
 for j in indices:
-    kernel, style, T, D, F, N, target = combination[j]
+    kernel, style, T, D, N, target = combination[j]
     
-    if results_exist(kernel=kernel, style=style, T=T, D=D, F=F, N=N, target=target, args=args):
-        print(ctext(f"Skipping (already run): T={T}, D={D}, F={F}, N={N}, target={target}", "yellow"))
+    if results_exist(kernel=kernel, style=style, T=T, D=D, N=N, target=target, args=args):
+        print(ctext(f"Skipping (already run): T={T}, D={D}, N={N}, target={target}", "yellow"))
         continue  # or return / pass depending on your structure
     
-    exec_str = build_cmd("experiment.py", kernel, style, T, D, F, N, target)
+    exec_str = build_cmd("experiment.py", kernel, style, T, D, N, target)
     print("\nExecuting:", ctext(exec_str, "green"))
     # os.system(exec_str)
 
     if args.plot:
-        plotting_str = build_cmd("plotting.py", kernel, style, T, D, F, N, target)
+        plotting_str = build_cmd("plotting.py", kernel, style, T, D, N, target)
         print("Plotting:", ctext(plotting_str, "green"))
         # os.system(plotting_str)
 

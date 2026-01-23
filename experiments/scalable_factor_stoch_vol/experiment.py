@@ -17,7 +17,7 @@ from gradient_csmc.utils.resamplings import killing, multinomial
 PLOTDIR = "plots"
 
 # Adaption config
-MIN_DELTA = 1e-10
+MIN_DELTA = 1e-11
 MAX_DELTA = 1e2
 MIN_RATE = 1e-3
 ADAPTATION_WINDOW = 100
@@ -284,7 +284,7 @@ for k, key_k in enumerate(EXPERIMENT_KEYS):
      energy_k, init_xs_k, true_xs_k, ys_k, 
      adapted_delta_k, sample_time_k, samples_iacf_k,
      esjd_vals_k, traces_k) = one_experiment(key_k)
-    print(ess_k.shape)
+    # print(ess_k.shape)
     
     final_pct_all[k, ...] = final_pct_k
     ess_all[k, :, :] = np.asarray(ess_k)

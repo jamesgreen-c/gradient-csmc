@@ -105,9 +105,9 @@ def plot_traces(
             ax[k, d].plot(traces[k, ..., d], label=labels[d])
             ax[k, d].legend()
             ax[k, d].set_xlabel("sample")
-            plt.tight_layout()
-            plt.savefig(f"{plotdir}/trace_plots.png")
-            plt.close()
+    plt.tight_layout()
+    plt.savefig(f"{plotdir}/trace_plots.png")
+    plt.close()
 
 
 def plot_square_error(
