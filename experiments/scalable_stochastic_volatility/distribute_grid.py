@@ -99,11 +99,11 @@ for j in indices:
     
     exec_str = build_cmd("experiment.py", kernel, style, T, D, N, target)
     print("\nExecuting:", ctext(exec_str, "green"))
-    # os.system(exec_str)
+    os.system(exec_str)
 
     if args.plot:
         plotting_str = build_cmd("plotting.py", kernel, style, T, D, N, target)
         print("Plotting:", ctext(plotting_str, "green"))
-        # os.system(plotting_str)
+        os.system(plotting_str)
 
 
