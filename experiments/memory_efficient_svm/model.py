@@ -38,6 +38,10 @@ def get_dynamics(D: int):
     Model uses independent latent state trajectories to model rotation angles and log eigenvalues
     of the spectral decomposition of the volatility matrix.
 
+    MEMORY ISSUES:
+    In the full model, large latent state dimension can lead to memory issues when storing covariance matrices.
+    Instead store variances (sigma) and persistences (phi) as vectors
+
     # TODO: make these parameters inputs to the function and experiment script
         
     :param D: Description
@@ -45,29 +49,24 @@ def get_dynamics(D: int):
     """
 
     h0 = jnp.zeros((D,))
-    d0 = jnp.zeros((D*(D-1) // 2,))
+    d0 = jnp.zeros((D * (D - 1) // 2,))
     m0 = jnp.concatenate([h0, d0], axis=0)
 
-    phi_h = as_square(0.8 * jnp.linspace(1, 0.1, D))    
-    phi_d = as_square(0.7 * jnp.linspace(1, 0.1, D*(D-1) // 2))    
-    F = block_diag(phi_h, phi_d)
+    phi_h = 0.8 * jnp.linspace(1.0, 0.1, D)
+    phi_d = 0.7 * jnp.linspace(1.0, 0.1, D * (D - 1) // 2)
+    phi = jnp.concatenate([phi_h, phi_d], axis=0)          # (dx,)
 
-    sigma_h = jnp.diag(0.3 * jnp.ones((D,)))
-    sigma_d = jnp.diag(0.3 * jnp.ones((D*(D-1) // 2,)))
+    sigma_h = 0.3 * jnp.ones((D,))
+    sigma_d = 0.3 * jnp.ones((D * (D - 1) // 2,))
+    sigma = jnp.concatenate([sigma_h, sigma_d], axis=0)    # (dx,)
 
-    h_P0 = (sigma_h**2) / (1 - phi_h**2)
-    d_P0 = (sigma_d**2) / (1 - phi_d**2)
-    P0 = block_diag(h_P0, d_P0)
+    # stationary variance for each component: sigma^2 / (1 - phi^2)
+    P0_diag = (sigma**2) / (1.0 - phi**2)                  # (dx,)
 
-    if sigma_h.ndim == 1:
-        sigma_h = jnp.diag(sigma_h)
-    if sigma_d.ndim == 1:
-        sigma_d = jnp.diag(sigma_d)
+    # drift for AR(1) with mean m0: x' = phi*x + (1-phi)*m0 + sigma*eps
+    b = (1.0 - phi) * m0
 
-    Q = block_diag(sigma_h**2, sigma_d**2)
-    
-    return m0, P0, Q, F, b
-
+    return m0, P0_diag, sigma, phi, b
 
 @partial(jax.jit, static_argnums=(1,))
 def make_single_givens_matrix(omega, D: int, i, j):
@@ -153,46 +152,31 @@ def make_covariance_matrix(x, D: int):
     Sigma = P @ (lambdas[:, None] * P.T)  # avoids explicit diag(lambdas)
     return Sigma
 
-    # def matmul_scan(carry, A):
-    #     return carry @ A, None
-    # P, _ = jax.lax.scan(matmul_scan, jnp.eye(D), G)  # (D, D)
-    
-    # # make covariance matrix and sample y_k
-    # Sigma = P @ jnp.diag(lambdas) @ P.T
-
 
 @partial(jax.jit, static_argnums=(6, 7))
-def get_data(key, m0, P0, Q, F, b, D: int, T: int):
-    
+def get_data(key, m0, P0_diag, sigma, phi, b, D: int, T: int):
     init_key, sampling_key = jr.split(key, 2)
+    dx = m0.shape[0]
 
-    inv_chol_P0 = jnp.linalg.cholesky(jnp.linalg.inv(P0))
-    inv_chol_Q = jnp.linalg.cholesky(jnp.linalg.inv(Q))
-
-    x1 = jr.multivariate_normal(init_key, m0, P0)
+    # x1 ~ N(m0, diag(P0_diag))
+    eps0 = jr.normal(init_key, (dx,))
+    x1 = m0 + jnp.sqrt(P0_diag) * eps0
 
     def body(x_k, key_k):
         state_key, observation_key = jr.split(key_k, 2)
-        
-        Sigma_k = make_covariance_matrix(x_k, D)
-        
-        # sample observation y_k
-        y_k = jr.multivariate_normal(
-            observation_key,
-            mean=jnp.zeros((D,)),
-            cov=Sigma_k
-        )
 
-        # sample next state x_k+1
-        x_kp1 = F @ x_k + b + jr.multivariate_normal(
-            state_key,
-            mean=jnp.zeros(x_k.shape),
-            cov=Q
-        )
+        Sigma_k = make_covariance_matrix(x_k, D)           # (D, D)
+        chol = jnp.linalg.cholesky(Sigma_k)                # (D, D)
+        eps_y = jr.normal(observation_key, (D,))
+        y_k = chol @ eps_y
+
+        eps_x = jr.normal(state_key, (dx,))
+        x_kp1 = phi * x_k + b + sigma * eps_x              # elementwise
+
         return x_kp1, (x_k, y_k)
 
-    _, (xs, ys) = jax.lax.scan(body, x1, jax.random.split(sampling_key, T))
-    return xs, ys, inv_chol_P0, inv_chol_Q
+    _, (xs, ys) = jax.lax.scan(body, x1, jr.split(sampling_key, T))
+    return xs, ys
 
 
 @jax.jit

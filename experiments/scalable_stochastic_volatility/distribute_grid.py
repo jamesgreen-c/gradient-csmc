@@ -90,7 +90,7 @@ if args.i != -1 and not (0 <= args.i < len(combination)):
 
 indices = range(len(combination)) if args.i == -1 else [args.i]
 
-for j in indices:
+for j in indices[:2]:
     kernel, style, T, D, N, target = combination[j]
     
     if results_exist(kernel=kernel, style=style, T=T, D=D, N=N, target=target, args=args):
@@ -100,6 +100,7 @@ for j in indices:
     exec_str = build_cmd("experiment.py", kernel, style, T, D, N, target)
     print("\nExecuting:", ctext(exec_str, "green"))
     os.system(exec_str)
+    break
 
     if args.plot:
         plotting_str = build_cmd("plotting.py", kernel, style, T, D, N, target)
