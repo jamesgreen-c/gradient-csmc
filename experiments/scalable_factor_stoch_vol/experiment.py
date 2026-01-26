@@ -214,7 +214,6 @@ def one_experiment(key):
                                                                                                       args.burnin)
 
     burnin_states = jax.vmap(init, in_axes=0)(burnin_samples)
-    tic = time.time()
 
     samples, final_pct = jax.vmap(get_samples, in_axes=[0, 0, None, None], out_axes=1)(sample_keys, 
                                                                                        burnin_states, 
@@ -224,7 +223,6 @@ def one_experiment(key):
     # jax.debug.print("samples shape: {}", samples.shape)
     final_pct = jnp.mean(final_pct * 1.0, 0)
     final_pct = jnp.reshape(final_pct, (args.M, -1)) * jnp.ones((args.M, args.T))
-    toc = time.time()
     energy = log_pdf(samples, ys, m0, inv_chol_P0, F, b, inv_chol_Q, B, V)
 
     if args.M > 1:
@@ -238,7 +236,6 @@ def one_experiment(key):
 
     means_here = jnp.mean(samples, 0)
     std_devs_here = jnp.std(samples, 0)
-    time_here = (toc - tic) / args.M
 
     def esjd(xs, xs_next):
         return jnp.sum((xs - xs_next) ** 2, -1)
@@ -258,7 +255,7 @@ def one_experiment(key):
     traces = jnp.take(samples[:, :, :, 0], t_idx, axis=2)
 
     return (means_here, std_devs_here, samples_ess, final_pct,
-            energy, init_xs, true_xs, ys, adapted_delta, time_here, 
+            energy, init_xs, true_xs, ys, adapted_delta, 
             samples_acf, esjd_vals, traces)
 
 
@@ -280,11 +277,16 @@ traces_all = np.empty((args.K, args.n_samples, args.M, 3))
 for k, key_k in enumerate(EXPERIMENT_KEYS):
     print(f"Running experiment {k + 1}/{args.K}")
 
+    tic = time.time()
     (means_k, std_k, ess_k, final_pct_k,
      energy_k, init_xs_k, true_xs_k, ys_k, 
-     adapted_delta_k, sample_time_k, samples_iacf_k,
+     adapted_delta_k, samples_iacf_k,
      esjd_vals_k, traces_k) = one_experiment(key_k)
     # print(ess_k.shape)
+
+    toc = time.time()
+    sample_time_k = (toc - tic) / args.M
+
     
     final_pct_all[k, ...] = final_pct_k
     ess_all[k, :, :] = np.asarray(ess_k)

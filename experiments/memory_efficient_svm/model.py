@@ -26,6 +26,7 @@ from jax import numpy as jnp
 from jax.scipy.linalg import solve_triangular, block_diag
 
 from gradient_csmc.utils.math import mvn_logpdf
+from gradient_csmc.utils.diag_mvn import diag_mvn_logpdf
 
 
 def as_square(A):
@@ -201,13 +202,13 @@ def log_likelihood(x, y):
     return jnp.sum(log_potential(x, y))
 
 
-def log_pdf(xs, ys, m0, inv_chol_P0, F, b, inv_chol_Q):
+def log_pdf(xs, ys, m0, P0_diag, phi, b, sigma):
+    # diag_mvn_logpdf expects sigma = std dev vector
+    sigma0 = jnp.sqrt(P0_diag)
     def _logpdf(zs):
-        out = mvn_logpdf(zs[0], m0, None, inv_chol_P0, constant=False)
-        # pred_xs = F @ zs[:-1] + b
-        # pred_xs = jnp.einsum('...j,ij,i->...i', zs[:-1], F, b)
-        pred_xs = jnp.einsum('ij,...j->...i', F, zs[:-1]) + b
-        out += jnp.sum(mvn_logpdf(zs[1:], pred_xs, None, inv_chol_Q, constant=False))
+        out = diag_mvn_logpdf(zs[0], m0, sigma0, constant=False)
+        pred_xs = phi * zs[:-1] + b
+        out += jnp.sum(diag_mvn_logpdf(zs[1:], pred_xs, sigma, constant=False))
         out += log_likelihood(zs, ys)
         return out
     return jnp.vectorize(_logpdf, signature="(T,d)->()")(xs)
@@ -218,15 +219,15 @@ if __name__ == "__main__":
     T = 300
     D = 3
 
-    m0, P0, Q, F, b = get_dynamics(D)
+    m0, P0_DIAG, SIGMA, PHI, b = get_dynamics(D)
 
     print(m0.shape)
-    print(P0.shape)
-    print(Q.shape)
-    print(F.shape)
+    print(P0_DIAG.shape)
+    print(SIGMA.shape)
+    print(PHI.shape)
     print(b.shape)
 
-    xs, ys, inv_chol_P0, inv_chol_Q = get_data(key, m0, P0, Q, F, b, D, T)
+    xs, ys = get_data(key, m0, P0_DIAG, SIGMA, PHI, b, D, T)
     print(xs.shape, ys.shape)
 
     import matplotlib.pyplot as plt
@@ -244,7 +245,7 @@ if __name__ == "__main__":
         ax[1].set_title(f"Observations y")
     
     plt.tight_layout()
-    plt.savefig("experiments/scalable_stochastic_volatility/plots/data.png")
+    plt.savefig("experiments/memory_efficient_svm/plots/data.png")
 
 
 # ====================== OLD ============================

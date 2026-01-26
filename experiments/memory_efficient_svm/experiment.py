@@ -9,8 +9,8 @@ import jax.numpy as jnp
 import numpy as np
 import tensorflow_probability.substrates.jax as tfp
 
-from experiments.scalable_stochastic_volatility.kernels import KernelType, get_csmc_kernel
-from experiments.scalable_stochastic_volatility.model import get_dynamics, get_data, log_pdf
+from experiments.memory_efficient_svm.kernels import KernelType, get_csmc_kernel
+from experiments.memory_efficient_svm.model import get_dynamics, get_data, log_pdf
 from gradient_csmc.utils.common import force_move, barker_move
 from gradient_csmc.utils.resamplings import killing, multinomial
 
@@ -95,7 +95,7 @@ Configuration:
 NOW = time.time()
 
 # we use the parametrisation given by ...
-m0, P0, Q, F, b = get_dynamics(args.D)
+m0, P0_DIAG, SIGMA, PHI, b = get_dynamics(args.D)
 
 TARGET_ALPHA = args.target / 100  # 1 - (1 + args.N) ** (-1 / 2)
 if args.target_stat.isnumeric():
@@ -155,9 +155,9 @@ def one_experiment(key):
     """
     data_key, init_key, adaptation_key, burnin_key, sample_key = jax.random.split(key, 5)
 
-    true_xs, ys, inv_chol_P0, inv_chol_Q = get_data(data_key, m0, P0, Q, F, b, args.D, args.T)
+    true_xs, ys = get_data(data_key, m0, P0_DIAG, SIGMA, PHI, b, args.D, args.T)
 
-    kernel, init, adaptation_loop, experiment_loop = kernel_type.kernel_maker(ys, m0, P0, Q, F, b, args.N,
+    kernel, init, adaptation_loop, experiment_loop = kernel_type.kernel_maker(ys, m0, P0_DIAG, SIGMA, PHI, b, args.N,
                                                                               resampling_func=resampling_fn,
                                                                               backward=args.backward,
                                                                               ancestor_move_func=last_step_fn,
@@ -168,7 +168,7 @@ def one_experiment(key):
     adaptation_loop = jax.jit(adaptation_loop, static_argnums=(2, 5, 6), static_argnames=("window_size", "target_stat"))
     experiment_loop = jax.jit(experiment_loop, static_argnums=(2, 3, 4, 5))
 
-    csmc_kernel, csmc_init, *_ = get_csmc_kernel(ys, m0, P0, Q, F, b, N=args.N, resampling_func=resampling_fn,
+    csmc_kernel, csmc_init, *_ = get_csmc_kernel(ys, m0, P0_DIAG, SIGMA, PHI, b, N=args.N, resampling_func=resampling_fn,
                                                  backward=True, ancestor_move_func=None, conditional=False)
 
     if args.bpf_init:
@@ -222,7 +222,7 @@ def one_experiment(key):
     # jax.debug.print("samples shape: {}", samples.shape)
     final_pct = jnp.mean(final_pct * 1.0, 0)
     final_pct = jnp.reshape(final_pct, (args.M, -1)) * jnp.ones((args.M, args.T))
-    energy = log_pdf(samples, ys, m0, inv_chol_P0, F, b, inv_chol_Q)
+    energy = log_pdf(samples, ys, m0, P0_DIAG, PHI, b, SIGMA)
 
     if args.M > 1:
         samples_ess = tfp.mcmc.effective_sample_size(samples, filter_beyond_positive_pairs=False,
@@ -246,7 +246,6 @@ def one_experiment(key):
             )(samples)  # vmap over M chains
         else:
             esjd_vals = jax.vmap(esjd)(samples[:-1], samples[1:])  
-
 
     # extract traces for representative dimensions
     # traces = (samples[:, :, 0, 0], samples[:, :, args.T // 2, 0], samples[:, :, args.T - 1, 0])
@@ -281,10 +280,10 @@ for k, key_k in enumerate(EXPERIMENT_KEYS):
      energy_k, init_xs_k, true_xs_k, ys_k, 
      adapted_delta_k, samples_iacf_k,
      esjd_vals_k, traces_k) = one_experiment(key_k)
+    # print(ess_k.shape)
     toc = time.time()
     sample_time_k = (toc - tic) / args.M
-    
-    # print(ess_k.shape)
+
     
     final_pct_all[k, ...] = final_pct_k
     ess_all[k, :, :] = np.asarray(ess_k)
