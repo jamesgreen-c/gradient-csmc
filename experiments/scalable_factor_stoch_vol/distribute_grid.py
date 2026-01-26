@@ -70,12 +70,19 @@ def results_exist(*, kernel, style, T, D, F, N, target, args) -> bool:
 kernel_type = (KernelType(args.kernel), )
 styles = (args.style, )
 
-TS = (64, 128, 256)
+# TS = (64, 128, 256)
+# DS = (50, 100, 150)
+# FS = (10, 20, 30)
+# NS = (31, 255, 511)
+
+# TARGETS = (25, 50, 75)
+
+TS = (128,)
 DS = (50, 100, 150)
 FS = (10, 20, 30)
-NS = (31, 255, 511)
+NS = (255,)
 
-TARGETS = (25, 50, 75)
+TARGETS = (75,)
 
 combination = list(product(kernel_type, styles, TS, DS, FS, NS, TARGETS))
 
