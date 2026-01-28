@@ -15,9 +15,9 @@ parser.add_argument("--bpf-init", dest="bpf_init", action='store_true')
 parser.add_argument('--no-bpf-init', dest='bpf_init', action='store_false')
 parser.set_defaults(bpf_init=True)
 
-parser.add_argument("--n-samples", dest="n_samples", type=int, default=250)
-parser.add_argument("--adaptation", dest="adaptation", type=int, default=2500)
-parser.add_argument("--burnin", dest="burnin", type=int, default=1000)
+parser.add_argument("--n-samples", dest="n_samples", type=int, default=1_000)
+parser.add_argument("--adaptation", dest="adaptation", type=int, default=2_000)
+parser.add_argument("--burnin", dest="burnin", type=int, default=1_000)
 
 parser.add_argument("--seed", dest="seed", type=int, default=1234)
 parser.add_argument("--kernel", dest="kernel", type=int, default=KernelType.MALA)
