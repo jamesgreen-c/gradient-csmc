@@ -1,7 +1,7 @@
 import argparse
 import os
 
-from experiments.scalable_factor_stoch_vol.kernels import KernelType
+from experiments.memory_efficient_svm.kernels import KernelType
 from gradient_csmc.utils.plotting import (plot_ess, plot_rr_v_delta, 
                                           plot_traces, plot_xs, plot_square_error, plot_mae)
 

@@ -220,9 +220,12 @@ def one_experiment(key):
                                                                                        True,
                                                                                        args.n_samples)
 
-    # jax.debug.print("samples shape: {}", samples.shape)
-    final_pct = jnp.mean(final_pct * 1.0, 0)
-    final_pct = jnp.reshape(final_pct, (args.M, -1)) * jnp.ones((args.M, args.T))
+    jax.debug.print("samples shape: {}", samples.shape)
+    final_pct = final_pct.astype(jnp.float32).mean(axis=0)   # (M*T,) or (something,)
+    final_pct = final_pct.reshape(args.M, args.T)            # (M, T)
+    # final_pct = jnp.mean(final_pct * 1.0, 0)
+    # final_pct = jnp.reshape(final_pct, (args.M, -1)) * jnp.ones((args.M, args.T))
+    jax.debug.print("final_pct shape: {}", final_pct.shape)
     energy = log_pdf(samples, ys, m0, inv_chol_P0, F, b, inv_chol_Q, B, V)
 
     if args.M > 1:
