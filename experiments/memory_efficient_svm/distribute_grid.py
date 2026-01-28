@@ -83,7 +83,7 @@ TARGETS = (75,)
 
 combination = list(product(kernel_type, styles, TS, DS, NS, TARGETS))
 
-def build_cmd(script: str, kernel, style, T, D, F, N, target) -> str:
+def build_cmd(script: str, kernel, style, T, D, N, target) -> str:
     base = (
         f"python3 {script} "
         f"--target {target} --T {T} --kernel {kernel.value} --style {style} --D {D} "
