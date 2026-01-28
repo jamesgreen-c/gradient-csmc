@@ -15,7 +15,6 @@ parser.add_argument("--bpf-init", dest="bpf_init", action='store_true')
 parser.add_argument('--no-bpf-init', dest='bpf_init', action='store_false')
 parser.set_defaults(bpf_init=True)
 
-parser.add_argument("--n-samples", dest="n_samples", type=int, default=25)
 parser.add_argument("--adaptation", dest="adaptation", type=int, default=0)
 parser.add_argument("--burnin", dest="burnin", type=int, default=0)
 
@@ -36,14 +35,14 @@ parser.set_defaults(plot=False)
 args = parser.parse_args()
 
 
-def results_exist(*, kernel, style, T, D, F, N, target, args) -> bool:
+def results_exist(*, kernel, style, T, D, N, target, args) -> bool:
     """
     Mirror experiment.py's experiment_name + datapath convention and check if results already exist.
     """
     TARGET_ALPHA = target / 100  # must match experiment.py convention
 
     experiment_name = (
-        "kernel={},samples={},burnin={},adaptation={},M={},T={},D={},F={},N={},style={},target={:.2f},"
+        "kernel={},samples={},burnin={},adaptation={},M={},T={},D={},N={},style={},target={:.2f},"
         "bpf_init={},resampling={},backward={},seed={}"
     ).format(
         kernel.name,   # kernel_type.name in experiment.py
@@ -53,7 +52,6 @@ def results_exist(*, kernel, style, T, D, F, N, target, args) -> bool:
         args.M,
         T,
         D,
-        F,
         N,
         style,
         TARGET_ALPHA,
@@ -100,7 +98,7 @@ indices = range(len(combination)) if args.i == -1 else [args.i]
 for j in indices:
     kernel, style, T, D, N, target = combination[j]
     
-    if results_exist(kernel=kernel, style=style, T=T, D=D, F=F, N=N, target=target, args=args):
+    if results_exist(kernel=kernel, style=style, T=T, D=D, N=N, target=target, args=args):
         print(ctext(f"Skipping (already run): T={T}, D={D}, N={N}, target={target}", "yellow"))
         continue  # or return / pass depending on your structure
     
@@ -109,7 +107,7 @@ for j in indices:
     os.system(exec_str)
 
     if args.plot:
-        plotting_str = build_cmd("plotting.py", kernel, style, T, D, F, N, target)
+        plotting_str = build_cmd("plotting.py", kernel, style, T, D, N, target)
         print("Plotting:", ctext(plotting_str, "green"))
         os.system(plotting_str)
 
