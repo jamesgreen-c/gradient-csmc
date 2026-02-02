@@ -99,7 +99,7 @@ def get_csmc_kernel(ys, m0, P0_diag, sigma, phi, b, N, style="bootstrap", **kwar
             eps = jax.random.normal(key, (N + 1, dx))
             return phi * x_t_m_1 + b[None, ...] + sigma * eps
 
-        M0_logpdf = lambda x: diag_mvn_logpdf(x, m0, sigma, constant=False)
+        M0_logpdf = lambda x: diag_mvn_logpdf(x, m0, P0_diag, constant=False)
         Mt_logpdf = lambda x_t_m_1, x_t, _params: diag_mvn_logpdf(x_t, phi * x_t_m_1 + b[None, ...],
                                                                    sigma, constant=False)
         # M0_logpdf = lambda x: mvn_logpdf(x, m0, None, chol_inv=_chol_P0_inv, constant=False)
@@ -132,16 +132,16 @@ def get_csmc_kernel(ys, m0, P0_diag, sigma, phi, b, N, style="bootstrap", **kwar
 
 
 
-def get_tp_csmc_kernel(ys, m0, P0, Q, F, b, N, style="marginal", stop_gradient=False, **kwargs):
+def get_tp_csmc_kernel(ys, m0, P0_diag, sigma, phi, b, N, style="marginal", stop_gradient=False, **kwargs):
     """
     Implement the Twisted Particle-mGRAD kernel for the scalable stochastic volatility model.
 
     :param ys: Observations (returns)
     :param m0: Initial means for the latent states
-    :param P0: Initial covariances for the latent states
-    :param Q: Process noise covariances for the latent states
-    :param F: Persistence coefficients for h and d
-    :param b: Bias for the latent states
+    :param P0_diag: Vector of stdevs for the independet Gaussian latent states
+    :param sigma: Vector of stdev for independent Gaussian latent states
+    :param phi: Vector of persistence parameters for independent latent states
+    :param b: Transition bias for the latent states
     :param kwargs: Additional keyword arguments
     """
 
@@ -157,71 +157,68 @@ def get_tp_csmc_kernel(ys, m0, P0, Q, F, b, N, style="marginal", stop_gradient=F
 
     rt_plus_params = rt, ys[1:]
 
-    mut = lambda x, _: x @ F.T + b[None, ...]
-
-    Qs = jnp.repeat(Q[None, ...], ys.shape[0] - 1, axis=0)
-    if style == 'marginal':
-        kernel = tpf.get_kernel(m0, P0, r0, mut, Qs, rt_plus_params, N=N, **kwargs)
-    elif style == 'filtering':
-        kernel = atpf.get_kernel(m0, P0, r0, mut, Qs, rt_plus_params, N=N, **kwargs)
-    elif style == 'smoothing':
-        kernel = atps.get_kernel(m0, P0, r0, mut, Qs, rt_plus_params, N=N, **kwargs)
-    elif style == 'twisted':
-        Fs = jnp.repeat(F[None, ...], ys.shape[0] - 1, axis=0)
-        bs = jnp.repeat(b[None, ...], ys.shape[0] - 1, axis=0)
-        kernel = t_atpf.get_kernel(m0, P0, r0, Fs, bs, Qs, rt_plus_params, N=N, **kwargs)
-    else:
-        raise NotImplementedError(
-            f"Unknown style: {style}, choose from 'marginal', 'filtering', 'smoothing', 'twisted'")
-
-    wrapped_kernel = lambda key, state, delta: kernel(key, state[0], state[1], delta, delta)
-
-    init = lambda x: (x, jnp.zeros((x.shape[0],), dtype=int))
-
-    def sampling_routine_fn(key, state, kernel_, n_steps, verbose, get_samples):
-        samples, flags = sampling_routine(key, state[0], state[1], kernel_, n_steps, verbose, get_samples)
-        return samples, flags
-
-    def adaptation_routine(key, state, kernel_, target_acceptance, initial_delta,
-                           n_steps, verbose, **kwargs_):
-        if style == "twisted":
-            return t_atpf.delta_adaptation_routine(key, state[0], state[1], kernel_, target_acceptance,
-                                                   initial_delta, n_steps, verbose, **kwargs_)
-        return delta_adaptation_routine(key, state[0], state[1], kernel_, target_acceptance,
-                                        initial_delta, n_steps, verbose, **kwargs_)
-
-    return wrapped_kernel, init, adaptation_routine, sampling_routine_fn
+    mut = lambda x, _: phi * x + b[None, ...]
+    
+    
+    raise(NotImplementedError)
+    # below this shows how all code is written for matrix calculations that are memory intensive
 
 
-def get_mala_csmc_kernel(ys, m0, P0, Q, F, b, N, style="marginal", **kwargs):
+    # Qs = jnp.repeat(Q[None, ...], ys.shape[0] - 1, axis=0)
+    # if style == 'marginal':
+    #     kernel = tpf.get_kernel(m0, P0, r0, mut, Qs, rt_plus_params, N=N, **kwargs)
+    # elif style == 'filtering':
+    #     kernel = atpf.get_kernel(m0, P0, r0, mut, Qs, rt_plus_params, N=N, **kwargs)
+    # elif style == 'smoothing':
+    #     kernel = atps.get_kernel(m0, P0, r0, mut, Qs, rt_plus_params, N=N, **kwargs)
+    # elif style == 'twisted':
+    #     Fs = jnp.repeat(F[None, ...], ys.shape[0] - 1, axis=0)
+    #     bs = jnp.repeat(b[None, ...], ys.shape[0] - 1, axis=0)
+    #     kernel = t_atpf.get_kernel(m0, P0, r0, Fs, bs, Qs, rt_plus_params, N=N, **kwargs)
+    # else:
+    #     raise NotImplementedError(
+    #         f"Unknown style: {style}, choose from 'marginal', 'filtering', 'smoothing', 'twisted'")
+
+    # wrapped_kernel = lambda key, state, delta: kernel(key, state[0], state[1], delta, delta)
+
+    # init = lambda x: (x, jnp.zeros((x.shape[0],), dtype=int))
+
+    # def sampling_routine_fn(key, state, kernel_, n_steps, verbose, get_samples):
+    #     samples, flags = sampling_routine(key, state[0], state[1], kernel_, n_steps, verbose, get_samples)
+    #     return samples, flags
+
+    # def adaptation_routine(key, state, kernel_, target_acceptance, initial_delta,
+    #                        n_steps, verbose, **kwargs_):
+    #     if style == "twisted":
+    #         return t_atpf.delta_adaptation_routine(key, state[0], state[1], kernel_, target_acceptance,
+    #                                                initial_delta, n_steps, verbose, **kwargs_)
+    #     return delta_adaptation_routine(key, state[0], state[1], kernel_, target_acceptance,
+    #                                     initial_delta, n_steps, verbose, **kwargs_)
+
+    # return wrapped_kernel, init, adaptation_routine, sampling_routine_fn
+
+
+def get_mala_csmc_kernel(ys, m0, P0_diag, sigma, phi, b, N, style="marginal", **kwargs):
     """
     Implement the Particle-aMALA algorithm for the scalable stochastic volatility model.
     
     :param ys: Observations (returns)
     :param m0: Initial means for the latent states
-    :param P0: Initial covariances for the latent states
-    :param Q: Process noise covariances for the latent states
-    :param F: Persistence coefficients for h and d
-    :param b: Bias for the latent states
+    :param P0_diag: Vector of stdevs for the independet Gaussian latent states
+    :param sigma: Vector of stdev for independent Gaussian latent states
+    :param phi: Vector of persistence parameters for independent latent states
+    :param b: Transition bias for the latent states
     :param kwargs: Additional keyword arguments
     """
 
-    dx = m0.shape[0]
-
-    chol_P0 = jnp.linalg.cholesky(P0)
-    chol_Q = jnp.linalg.cholesky(Q)
-
-    chol_P0_inv = solve_triangular(chol_P0, jnp.eye(dx), lower=True)
-    chol_Q_inv = solve_triangular(chol_Q, jnp.eye(dx), lower=True)
-
     @partial(jnp.vectorize, signature='(d)->()')
     def Gamma_0(x):
-        return log_potential(x, ys[0]) + mvn_logpdf(x, m0, None, chol_inv=chol_P0_inv, constant=False)
+        return log_potential(x, ys[0]) + diag_mvn_logpdf(x, m0, P0_diag, constant=False)
 
     @partial(jnp.vectorize, signature='(d),(d),(n)->()')
     def Gamma_t(x_t_m_1, x_t, y):
-        x_pred = x_t_m_1 @ F.T + b
-        return log_potential(x_t, y) + mvn_logpdf(x_t, x_pred, None, chol_inv=chol_Q_inv, constant=False)
+        x_pred = phi * x_t_m_1 + b
+        return log_potential(x_t, y) + diag_mvn_logpdf(x_t, x_pred, sigma, constant=False)
 
     Gamma_t_plus_params = Gamma_t, ys[1:]
 
@@ -274,7 +271,7 @@ def get_rw_csmc_kernel(ys, m0, P0_diag, sigma, phi, b, N, **kwargs):
 
     @partial(jnp.vectorize, signature='(d)->()')
     def Gamma_0(x):
-        return log_potential(x, ys[0]) + diag_mvn_logpdf(x, m0, sigma, constant=False)
+        return log_potential(x, ys[0]) + diag_mvn_logpdf(x, m0, P0_diag, constant=False)
 
     @partial(jnp.vectorize, signature='(d),(d),(n)->()')
     def Gamma_t(x_t_m_1, x_t, y):
