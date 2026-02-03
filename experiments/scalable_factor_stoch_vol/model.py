@@ -143,15 +143,35 @@ def make_covariance_matrix(x, K: int):
 
     # make omegas and eigenvectors
     omegas = 0.5 * jnp.pi * (1 - jnp.exp(d)) / (1 + jnp.exp(d))
-    G = make_givens_matrices(omegas, K)  # (B, K, K)
+    I, J = jnp.triu_indices(K, k=1)  # shape (K,), (K,)
+    # G = make_givens_matrices(omegas, D)  # (K, D, D)
 
-    def matmul_scan(carry, A):
-        return carry @ A, None
-    P, _ = jax.lax.scan(matmul_scan, jnp.eye(K), G)  # (K, K)
-    
-    # make covariance matrix and sample y_k
-    Sigma = P @ jnp.diag(lambdas) @ P.T
+    def apply_givens_rotations(P, inputs):
+        omega, i, j = inputs
+        c = jnp.cos(omega)
+        s = jnp.sin(omega)
+
+        # Right-multiply by G_ij: only columns i and j change.
+        Pi = P[:, i]
+        Pj = P[:, j]
+        P = P.at[:, i].set(c * Pi + s * Pj)
+        P = P.at[:, j].set(-s * Pi + c * Pj)
+        return P, None
+
+    P0 = jnp.eye(K)
+    P, _ = jax.lax.scan(apply_givens_rotations, P0, (omegas, I, J))  # (D, D)
+
+    Sigma = P @ (lambdas[:, None] * P.T)  # avoids explicit diag(lambdas)
     return Sigma
+    # G = make_givens_matrices(omegas, K)  # (B, K, K)
+
+    # def matmul_scan(carry, A):
+    #     return carry @ A, None
+    # P, _ = jax.lax.scan(matmul_scan, jnp.eye(K), G)  # (K, K)
+    
+    # # make covariance matrix and sample y_k
+    # Sigma = P @ jnp.diag(lambdas) @ P.T
+    # return Sigma
 
 
 @partial(jax.jit, static_argnums=(8, 9))
