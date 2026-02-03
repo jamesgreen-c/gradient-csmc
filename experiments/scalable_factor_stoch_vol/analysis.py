@@ -6,6 +6,7 @@ from itertools import product
 import numpy as np
 import matplotlib.pyplot as plt
 
+from gradient_csmc.utils.printing import ctext
 from experiments.scalable_factor_stoch_vol.kernels import KernelType
 
 # ARGS PARSING
@@ -58,8 +59,9 @@ STYLES = (
 
 TS = (args.T,)
 TARGETS = (args.target,)
+FS = (1, 10, 20)
 
-combination = list(product(TS, TARGETS, zip(KERNELS, STYLES)))
+combination = list(product(TS, FS, TARGETS, zip(KERNELS, STYLES)))
 
 
 # ANALYSE DELTAS
@@ -74,7 +76,7 @@ def analyse_deltas():
 
     stats = []
     for j in range(len(combination)):
-        T, target, (kernel, style, *_) = combination[j]
+        T, F, target, (kernel, style, *_) = combination[j]
         TARGET_ALPHA = target / 100
 
         experiment_name = (
@@ -88,7 +90,7 @@ def analyse_deltas():
             args.M,
             T,
             args.D,
-            args.n_factors,
+            F,
             args.N,
             style,
             TARGET_ALPHA,
@@ -100,7 +102,9 @@ def analyse_deltas():
 
         dirpath = f"results/{experiment_name}"
         if not os.path.exists(dirpath):
-            raise FileNotFoundError(f"No such experiment found: {dirpath}")
+            print(ctext(f"No such experiment found: {dirpath}", "red"))
+            continue  # or return / pass depending on your structure
+            # raise FileNotFoundError(f"No such experiment found: {dirpath}")
 
         data = np.load(f"{dirpath}/data.npz")
         adapted_delta_all = data["delta"]  # (K, T)
@@ -112,6 +116,7 @@ def analyse_deltas():
             dict(
                 kernel=kernel.name,
                 style=str(style),
+                F=int(F),
                 dmin=float(np.min(mean_adapted_delta)),
                 dmed=float(np.median(mean_adapted_delta)),
                 dmax=float(np.max(mean_adapted_delta)),
@@ -121,54 +126,100 @@ def analyse_deltas():
     # ----------------- Plotting -----------------
 
     kernels = sorted({s["kernel"] for s in stats})
-    styles = sorted({s["style"] for s in stats})
+    Fs_sorted = sorted({s["F"] for s in stats})
 
-    # Build lookup: (kernel, style) -> (min, med, max)
-    lookup = {(s["kernel"], s["style"]): (s["dmin"], s["dmed"], s["dmax"]) for s in stats}
+    # lookup[(kernel, style, F)] -> (min, med, max)
+    lookup = {
+        (s["kernel"], s["style"], s["F"]): (s["dmin"], s["dmed"], s["dmax"])
+        for s in stats
+    }
 
-    x = np.arange(len(kernels))
-    n_styles = len(styles)
-    group_width = 0.8
-    bar_w = group_width / max(n_styles, 1)
+    for kernel in kernels:
+        styles_k = sorted({s["style"] for s in stats if s["kernel"] == kernel})
 
-    fig, ax = plt.subplots(3, 1, figsize=(14, 10), sharex=True)
+        fig, ax = plt.subplots(1, 1, figsize=(12, 6))
 
-    titles = ["Min adapted delta (over time)", "Median adapted delta (over time)", "Max adapted delta (over time)"]
-    keys = [0, 1, 2]  # index into (min, med, max)
+        for style in styles_k:
+            vals = np.array(
+                [lookup.get((kernel, style, F), (np.nan, np.nan, np.nan)) for F in Fs_sorted],
+                dtype=float,
+            )  # (len(FS), 3) = (min, med, max)
 
-    # Use a colormap so each style gets a consistent color across all panels
-    cmap = plt.get_cmap("tab10")
-    colors = [cmap(i % 10) for i in range(n_styles)]
+            dmin = vals[:, 0]
+            dmed = vals[:, 1]
+            dmax = vals[:, 2]
 
-    for si, style in enumerate(styles):
-        # Center grouped bars around each kernel tick
-        offset = (si - (n_styles - 1) / 2) * bar_w
+            # median line (points)
+            ax.plot(Fs_sorted, dmed, marker="o", linewidth=2, label=style)
 
-        vals = np.array(
-            [lookup.get((k, style), (np.nan, np.nan, np.nan)) for k in kernels],
-            dtype=float,
-        )  # shape (K, 3)
+            # min-max band around the median
+            ax.fill_between(Fs_sorted, dmin, dmax, alpha=0.2)
 
-        for row, a in enumerate(ax):
-            a.bar(x + offset, vals[:, row], width=bar_w * 0.95, label=style if row == 0 else None, color=colors[si])
+        ax.set_title(f"{kernel}: adapted delta vs F (median with min–max band)")
+        ax.set_xlabel("F")
+        ax.set_ylabel("delta")
+        ax.set_xticks(Fs_sorted)
+        ax.grid(True, axis="y", alpha=0.25)
 
-    for i, a in enumerate(ax):
-        a.set_title(titles[i])
-        a.set_ylabel("delta")
-        a.grid(True, axis="y", alpha=0.25)
+        # same scale choice you used before (works fine with fill_between)
+        ax.set_yscale("symlog", linthresh=1e-3)
 
-    for a in ax:
-        a.set_yscale("symlog", linthresh=1e-3)
+        ax.legend(ncol=min(len(styles_k), 4), frameon=True)
+        fig.tight_layout()
 
-    ax[-1].set_xticks(x)
-    ax[-1].set_xticklabels(kernels, rotation=0)
+        outpath = f"results/delta_scaling__kernel={kernel}.png"
+        plt.savefig(outpath, dpi=200)
+        plt.close(fig)
 
-    # One shared legend (much cleaner than repeating)
-    handles, labels = ax[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=min(len(labels), 4), frameon=True)
+    # kernels = sorted({s["kernel"] for s in stats})
+    # styles = sorted({s["style"] for s in stats})
 
-    fig.tight_layout(rect=[0, 0, 1, 0.92])
-    plt.savefig("results/delta_scaling.png")
+    # # Build lookup: (kernel, style) -> (min, med, max)
+    # lookup = {(s["kernel"], s["style"]): (s["dmin"], s["dmed"], s["dmax"]) for s in stats}
+
+    # x = np.arange(len(kernels))
+    # n_styles = len(styles)
+    # group_width = 0.8
+    # bar_w = group_width / max(n_styles, 1)
+
+    # fig, ax = plt.subplots(3, 1, figsize=(14, 10), sharex=True)
+
+    # titles = ["Min adapted delta (over time)", "Median adapted delta (over time)", "Max adapted delta (over time)"]
+    # keys = [0, 1, 2]  # index into (min, med, max)
+
+    # # Use a colormap so each style gets a consistent color across all panels
+    # cmap = plt.get_cmap("tab10")
+    # colors = [cmap(i % 10) for i in range(n_styles)]
+
+    # for si, style in enumerate(styles):
+    #     # Center grouped bars around each kernel tick
+    #     offset = (si - (n_styles - 1) / 2) * bar_w
+
+    #     vals = np.array(
+    #         [lookup.get((k, style), (np.nan, np.nan, np.nan)) for k in kernels],
+    #         dtype=float,
+    #     )  # shape (K, 3)
+
+    #     for row, a in enumerate(ax):
+    #         a.bar(x + offset, vals[:, row], width=bar_w * 0.95, label=style if row == 0 else None, color=colors[si])
+
+    # for i, a in enumerate(ax):
+    #     a.set_title(titles[i])
+    #     a.set_ylabel("delta")
+    #     a.grid(True, axis="y", alpha=0.25)
+
+    # for a in ax:
+    #     a.set_yscale("symlog", linthresh=1e-3)
+
+    # ax[-1].set_xticks(x)
+    # ax[-1].set_xticklabels(kernels, rotation=0)
+
+    # # One shared legend (much cleaner than repeating)
+    # handles, labels = ax[0].get_legend_handles_labels()
+    # fig.legend(handles, labels, loc="upper center", ncol=min(len(labels), 4), frameon=True)
+
+    # fig.tight_layout(rect=[0, 0, 1, 0.92])
+    # plt.savefig("results/delta_scaling.png")
 
 
 if __name__ == "__main__":

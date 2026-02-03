@@ -10,8 +10,8 @@ from gradient_csmc.utils.printing import ctext
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--T", dest="T", type=int, default=128)
-parser.add_argument("--D", dest="D", type=int, default=5)
-parser.add_argument("--n-factors", dest="n_factors", type=int, default=5)
+parser.add_argument("--D", dest="D", type=int, default=50)
+# parser.add_argument("--n-factors", dest="n_factors", type=int, default=5)
 
 parser.add_argument("--N", dest="N", type=int, default=31)  # total number of particles is N + 1
 
@@ -19,9 +19,9 @@ parser.add_argument("--bpf-init", dest="bpf_init", action='store_true')
 parser.add_argument('--no-bpf-init', dest='bpf_init', action='store_false')
 parser.set_defaults(bpf_init=True)
 
-parser.add_argument("--n-samples", dest="n_samples", type=int, default=25)
+parser.add_argument("--n-samples", dest="n_samples", type=int, default=1000)
 parser.add_argument("--adaptation", dest="adaptation", type=int, default=2000)
-parser.add_argument("--burnin", dest="burnin", type=int, default=3000)
+parser.add_argument("--burnin", dest="burnin", type=int, default=1000)
 
 parser.add_argument("--target", dest="target", type=int, default=75)
 
@@ -52,16 +52,16 @@ STYLES = (
 
 TS = (args.T,)
 TARGETS = (args.target,)
-
-combination = list(product(TS, TARGETS, zip(KERNELS, STYLES)))
+FS = (1, 10, 20,)
+combination = list(product(TS, FS, TARGETS, zip(KERNELS, STYLES)))
 
 N = args.N
-D = args.D
-F = args.n_factors
+D = max(args.D, max(FS))
+
 
 if args.i == -1:
     for j in range(len(combination)):
-        T, target, (kernel, style, *_) = combination[j]
+        T, F, target, (kernel, style, *_) = combination[j]
         exec_str = (
             "python3 experiment.py "
             "--target {} --T {} --kernel {} --style {} --D {} "
@@ -84,7 +84,7 @@ if args.i == -1:
             os.system(plotting_str)
 
 else:
-    T, target, (kernel, style, *_) = combination[args.i]
+    T, F, target, (kernel, style, *_) = combination[args.i]
     exec_str = (
         "python3 experiment.py "
         "--target {} --T {} --kernel {} --style {} --D {} "
