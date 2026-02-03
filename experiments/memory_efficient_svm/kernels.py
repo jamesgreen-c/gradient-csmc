@@ -210,41 +210,41 @@ def get_mala_csmc_kernel(ys, m0, P0_diag, sigma, phi, b, N, style="marginal", **
     :param b: Transition bias for the latent states
     :param kwargs: Additional keyword arguments
     """
+    raise(NotImplementedError)
+    # @partial(jnp.vectorize, signature='(d)->()')
+    # def Gamma_0(x):
+    #     return log_potential(x, ys[0]) + diag_mvn_logpdf(x, m0, P0_diag, constant=False)
 
-    @partial(jnp.vectorize, signature='(d)->()')
-    def Gamma_0(x):
-        return log_potential(x, ys[0]) + diag_mvn_logpdf(x, m0, P0_diag, constant=False)
+    # @partial(jnp.vectorize, signature='(d),(d),(n)->()')
+    # def Gamma_t(x_t_m_1, x_t, y):
+    #     x_pred = phi * x_t_m_1 + b
+    #     return log_potential(x_t, y) + diag_mvn_logpdf(x_t, x_pred, sigma, constant=False)
 
-    @partial(jnp.vectorize, signature='(d),(d),(n)->()')
-    def Gamma_t(x_t_m_1, x_t, y):
-        x_pred = phi * x_t_m_1 + b
-        return log_potential(x_t, y) + diag_mvn_logpdf(x_t, x_pred, sigma, constant=False)
+    # Gamma_t_plus_params = Gamma_t, ys[1:]
 
-    Gamma_t_plus_params = Gamma_t, ys[1:]
+    # if style == "filtering":
+    #     kernel = lambda key, state, delta: alf.kernel(key, state[0], state[1], Gamma_0, Gamma_t_plus_params, delta,
+    #                                                   delta, N=N, **kwargs)
+    # elif style == "smoothing":
+    #     kernel = lambda key, state, delta: als.kernel(key, state[0], state[1], Gamma_0, Gamma_t_plus_params, delta,
+    #                                                   delta, N=N, **kwargs)
+    # elif style == "marginal":
+    #     kernel = lambda key, state, delta: lf.kernel(key, state[0], state[1], Gamma_0, Gamma_t_plus_params, delta,
+    #                                                  delta, N=N, **kwargs)
+    # else:
+    #     raise NotImplementedError(f"Unknown style: {style}, choose from 'marginal', 'filtering', 'smoothing'")
+    # init = lambda x: (x, jnp.zeros((x.shape[0],), dtype=int))
 
-    if style == "filtering":
-        kernel = lambda key, state, delta: alf.kernel(key, state[0], state[1], Gamma_0, Gamma_t_plus_params, delta,
-                                                      delta, N=N, **kwargs)
-    elif style == "smoothing":
-        kernel = lambda key, state, delta: als.kernel(key, state[0], state[1], Gamma_0, Gamma_t_plus_params, delta,
-                                                      delta, N=N, **kwargs)
-    elif style == "marginal":
-        kernel = lambda key, state, delta: lf.kernel(key, state[0], state[1], Gamma_0, Gamma_t_plus_params, delta,
-                                                     delta, N=N, **kwargs)
-    else:
-        raise NotImplementedError(f"Unknown style: {style}, choose from 'marginal', 'filtering', 'smoothing'")
-    init = lambda x: (x, jnp.zeros((x.shape[0],), dtype=int))
+    # def sampling_routine_fn(key, state, kernel_, n_steps, verbose, get_samples):
+    #     samples, flags = sampling_routine(key, state[0], state[1], kernel_, n_steps, verbose, get_samples)
+    #     return samples, flags
 
-    def sampling_routine_fn(key, state, kernel_, n_steps, verbose, get_samples):
-        samples, flags = sampling_routine(key, state[0], state[1], kernel_, n_steps, verbose, get_samples)
-        return samples, flags
+    # def adaptation_routine(key, state, kernel_, target_acceptance, initial_delta,
+    #                        n_steps, verbose, **_kwargs):
+    #     return delta_adaptation_routine(key, state[0], state[1], kernel_, target_acceptance,
+    #                                     initial_delta, n_steps, verbose, **_kwargs)
 
-    def adaptation_routine(key, state, kernel_, target_acceptance, initial_delta,
-                           n_steps, verbose, **_kwargs):
-        return delta_adaptation_routine(key, state[0], state[1], kernel_, target_acceptance,
-                                        initial_delta, n_steps, verbose, **_kwargs)
-
-    return kernel, init, adaptation_routine, sampling_routine_fn
+    # return kernel, init, adaptation_routine, sampling_routine_fn
 
 
 def get_rw_csmc_kernel(ys, m0, P0_diag, sigma, phi, b, N, **kwargs):

@@ -111,6 +111,38 @@ def make_givens_matrices(omegas, D: int):
     return G
 
 
+# @partial(jax.jit, static_argnums=(1,))
+# def make_covariance_matrix(x, D: int):
+#     """
+#     Construct the covariance matrix from:
+
+#     S = P Lambda P^T
+#     P = prod_{i<j} G_ij(omega_ij)
+#     h_i = log(lambda_i)
+#     d_ij = log( (pi/2 - omega_ij) / (pi/2 + omega_ij) )
+    
+#     :param x: Latent state vector of shape (D*(D-1) + D,) containing h and d
+#     """
+
+#     h = x[:D]
+#     d = x[D:]
+
+#     # make eigenvalues
+#     lambdas = jnp.exp(h)
+
+#     # make omegas and eigenvectors
+#     omegas = 0.5 * jnp.pi * (1 - jnp.exp(d)) / (1 + jnp.exp(d))
+#     G = make_givens_matrices(omegas, D)  # (B, K, K)
+
+#     def matmul_scan(carry, A):
+#         return carry @ A, None
+#     P, _ = jax.lax.scan(matmul_scan, jnp.eye(D), G)  # (K, K)
+    
+#     # make covariance matrix and sample y_k
+#     Sigma = P @ jnp.diag(lambdas) @ P.T
+#     return Sigma
+
+
 @partial(jax.jit, static_argnums=(1,))
 def make_covariance_matrix(x, D: int):
     """

@@ -33,6 +33,9 @@ parser.add_argument("--i", dest="i", type=int, default=-1)
 parser.add_argument("--plot", dest="plot", action="store_true")
 parser.set_defaults(plot=False)
 
+parser.add_argument("--delta-scaling", dest="delta_scaling", action="store_true")
+parser.set_defaults(delta_scaling=False)
+
 args = parser.parse_args()
 
 
@@ -75,10 +78,15 @@ styles = (args.style, )
 
 # TARGETS = (25, 50, 75)
 
-TS = (128, 256, 512, 1024)
-DS = (50,)
-NS = (64,)
+if args.delta_scaling:
+    TS = (128,)
+    DS = (1, 10, 20, 30)
 
+else:
+    TS = (128, 256, 512, 1024)
+    DS = (50,)
+
+NS = (64,)    
 TARGETS = (75,)
 
 combination = list(product(kernel_type, styles, TS, DS, NS, TARGETS))
