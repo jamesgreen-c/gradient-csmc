@@ -4,6 +4,25 @@ import jax
 import jax.numpy as jnp
 from chex import Array, PRNGKey
 
+from jax.scipy.special import logsumexp
+
+
+def ess(ws: Array, log_weights: bool = True):
+    """
+    Calculate the ESS = 1 / sum(ws**2)
+    If log_weights: calculate from logspace
+    
+    :param ws: weights (T, N)
+    :param log_weights: Calculate ESS from logspace?
+    """
+    if log_weights:
+        a = logsumexp(ws, axis=1)          # (T,)
+        b = logsumexp(2.0 * ws, axis=1)    # (T,)
+        return jnp.exp(2.0 * a - b)        # (T,)
+
+    ws = ws / jnp.sum(ws, axis=1, keepdims=True)  # (T, N) normalise per t
+    return 1.0 / jnp.sum(ws**2, axis=1)           # (T,)
+
 
 def force_move(key: PRNGKey, weights: Array, k: int) -> [Array, float]:
     """
