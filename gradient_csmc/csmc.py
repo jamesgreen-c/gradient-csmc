@@ -1,5 +1,5 @@
 """
-Implements the random walk cSMC kernel from Finke and Thiery (2023).
+Implements the cSMC kernel.
 """
 from typing import Callable, Union, Any
 
