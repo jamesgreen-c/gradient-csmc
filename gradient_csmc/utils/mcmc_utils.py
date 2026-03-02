@@ -2,6 +2,7 @@ import jax
 import jax.numpy as jnp
 
 from gradient_csmc.utils.pbar import progress_bar_scan
+from functools import partial
 
 
 def delta_adaptation_routine(
@@ -126,7 +127,7 @@ def sampling_routine(key,
         xs, bs, show = carry
 
         # Run kernel
-        next_xs, next_bs, *_ = kernel(key_op, (xs, bs))
+        next_xs, next_bs, next_log_ws, *_ = kernel(key_op, (xs, bs))
         accepted = next_bs != bs
         carry_out = next_xs, next_bs, jnp.mean(accepted)
 
@@ -138,5 +139,53 @@ def sampling_routine(key,
     if get_samples:
         samples, flags = out
         return samples[::int(get_samples)], flags[::int(get_samples)]
+    else:
+        return final_xs[:2]
+
+
+def aux_sampling_routine(key,
+                     init_xs, init_bs,
+                     kernel,
+                     n_steps,
+                     verbose=False,
+                     get_samples=True):
+    """
+    Runs a generic MCMC sampling routine using the provided MCMC kernel.
+
+    At each step, the MCMC kernel (eg Particle-RWM kernel) is applied to the current state
+    which produces a new reference state (x_ref, b_ref). If get_samples is set, them we store
+    all the samples and return them at the end, otherwise we just return the final state.
+        
+    :param key: rng
+    :param init_xs: Initial reference path
+    :param init_bs: Initial reference ancestor indices
+    :param kernel: MCMC kernel function (eg Particle-RWM kernel)
+    :param n_steps: Number of iterations
+    :param verbose: Use a progress bar?
+    :param get_samples: Whether to return all samples or just the final state
+    """
+
+    if verbose:
+        decorator = progress_bar_scan(n_steps, show=-1)
+    else:
+        decorator = lambda x: x
+
+    @decorator
+    def body(carry, inp):
+        i, key_op = inp
+        xs, bs, show = carry
+
+        # Run kernel
+        next_xs, next_bs, next_log_ws, *_ = kernel(key_op, (xs, bs))
+        accepted = next_bs != bs
+        carry_out = next_xs, next_bs, jnp.mean(accepted)
+
+        return carry_out, (next_xs, next_bs, next_log_ws, accepted) if get_samples else None
+
+    init = init_xs, init_bs, 0.
+    inps = jnp.arange(n_steps), jax.random.split(key, n_steps)
+    final_xs, out = jax.lax.scan(body, init, inps)
+    if get_samples:
+        return out
     else:
         return final_xs[:2]
