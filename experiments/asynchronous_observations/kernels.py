@@ -79,7 +79,7 @@ def get_mala_kernel(ys, m0, P0, F, Q, b, N=1, style="marginal", **_kwargs):
 def get_csmc_kernel(m0, ys, inds, dx, phi, chol_P0, chol_Q, N, style="bootstrap", **kwargs):
 
     dt = 1 / dx
-    A = jnp.exp(phi * dt)
+    A = jnp.exp(-phi * dt)
 
     _chol_P0_inv = solve_triangular(chol_P0, jnp.eye(m0.shape[0]), lower=True)
     _chol_Q_inv = solve_triangular(chol_Q, jnp.eye(m0.shape[0]), lower=True)
@@ -137,7 +137,7 @@ def get_mala_csmc_kernel(ys, m0, P0, F, Q, b, N, style="marginal", **kwargs):
 def get_rw_csmc_kernel(m0, ys, inds, dx, phi, chol_P0, chol_Q, N, **kwargs):
     kwargs.pop("style")
     dt = 1 / dx
-    A = jnp.exp(phi * dt)
+    A = jnp.exp(-phi * dt)
 
     _chol_P0_inv = solve_triangular(chol_P0, jnp.eye(m0.shape[0]), lower=True)
     _chol_Q_inv = solve_triangular(chol_Q, jnp.eye(m0.shape[0]), lower=True)
@@ -162,8 +162,8 @@ def get_rw_csmc_kernel(m0, ys, inds, dx, phi, chol_P0, chol_Q, N, **kwargs):
     init = lambda x: (x, jnp.zeros((x.shape[0],), dtype=int))
 
     def sampling_routine_fn(key, state, kernel_, n_steps, verbose, get_samples):
-        sample_xs, sample_bs, sample_log_ws, flags = aux_sampling_routine(key, state[0], state[1], kernel_, n_steps, verbose, get_samples)
-        return sample_xs, sample_bs, sample_log_ws, flags
+        return aux_sampling_routine(key, state[0], state[1], kernel_, n_steps, verbose, get_samples)
+        # return sample_xs, sample_bs, sample_log_ws, flags
 
     def adaptation_routine(key, state, kernel_, target_acceptance, initial_delta,
                            n_steps, verbose, **_kwargs):

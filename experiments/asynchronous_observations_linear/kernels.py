@@ -79,7 +79,7 @@ def get_mala_kernel(ys, m0, P0, F, Q, b, N=1, style="marginal", **_kwargs):
 def get_csmc_kernel(m0, ys, dx, phi, chol_P0, chol_Q, N, style="bootstrap", **kwargs):
 
     dt = 1 / dx
-    A = jnp.exp(phi * dt)
+    A = jnp.exp(-phi * dt)
 
     _chol_P0_inv = solve_triangular(chol_P0, jnp.eye(m0.shape[0]), lower=True)
     _chol_Q_inv = solve_triangular(chol_Q, jnp.eye(m0.shape[0]), lower=True)
@@ -137,7 +137,7 @@ def get_mala_csmc_kernel(ys, m0, P0, F, Q, b, N, style="marginal", **kwargs):
 def get_rw_csmc_kernel(m0, ys, dx, phi, chol_P0, chol_Q, N, **kwargs):
     kwargs.pop("style")
     dt = 1 / dx
-    A = jnp.exp(phi * dt)
+    A = jnp.exp(-phi * dt)
 
     _chol_P0_inv = solve_triangular(chol_P0, jnp.eye(m0.shape[0]), lower=True)
     _chol_Q_inv = solve_triangular(chol_Q, jnp.eye(m0.shape[0]), lower=True)

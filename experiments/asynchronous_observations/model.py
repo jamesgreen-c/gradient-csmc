@@ -77,8 +77,10 @@ def get_data(key, sigma, dim, phi: float = 1.0):
     x0 = chol_P0 @ z0
 
     # OU discretisation
-    A = jnp.exp(phi * dt)
-    sigma_dt = sigma * jnp.sqrt((jnp.exp(2.0 * phi * dt) - 1.0) / (2.0 * phi))
+    A = jnp.exp(-phi * dt)
+    sigma_dt = sigma * jnp.sqrt((1.0 - jnp.exp(-2.0 * phi * dt)) / (2.0 * phi))
+    # A = jnp.exp(phi * dt)
+    # sigma_dt = sigma * jnp.sqrt((jnp.exp(2.0 * phi * dt) - 1.0) / (2.0 * phi))
     chol_Q = sigma_dt * L
 
     # standard normals for the step noise
