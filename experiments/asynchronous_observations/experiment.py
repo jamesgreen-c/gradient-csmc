@@ -31,10 +31,9 @@ ADAPTATION_RATE = 0.85
 # ARGS PARSING
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--T", dest="T", type=int, default=1_000)
-parser.add_argument("--D", dest="D", type=int, default=10)
+parser.add_argument("--D", dest="D", type=int, default=50)
 parser.add_argument("--K", dest="K", type=int, default=1)
-parser.add_argument("--M", dest="M", type=int, default=3)
+parser.add_argument("--M", dest="M", type=int, default=4)
 
 parser.add_argument("--log-var", dest="log_var", type=float, default=0)
 parser.add_argument("--phi", type=float, default=1.)
@@ -44,13 +43,13 @@ parser.add_argument("--delta", dest="delta", type=float,
 parser.add_argument("--delta-scale", dest="delta_scale", type=float, default=1 / 3)
 parser.add_argument("--delta-arg", dest="delta_arg", type=str, default="na")
 
-parser.add_argument("--n-samples", dest="n_samples", type=int, default=25)
-parser.add_argument("--adaptation", dest="adaptation", type=int, default=2_000)
-parser.add_argument("--burnin", dest="burnin", type=int, default=1_000)
+parser.add_argument("--n-samples", dest="n_samples", type=int, default=1_000)
+parser.add_argument("--adaptation", dest="adaptation", type=int, default=0)
+parser.add_argument("--burnin", dest="burnin", type=int, default=3_000)
 parser.add_argument("--delta-init", dest="delta_init", type=float,
                      default=10 ** (0.5 * (np.log10(MIN_DELTA) + np.log10(MAX_DELTA))))
 
-parser.add_argument("--target", dest="target", type=int, default=75)
+parser.add_argument("--target", dest="target", type=int, default=27)
 parser.add_argument("--target-stat", dest='target_stat', type=str, default="mean")
 
 parser.add_argument("--seed", dest="seed", type=int, default=1234)
@@ -93,6 +92,7 @@ Configuration:
     - kernel: {KernelType(args.kernel).name}
     - style: {args.style}
     - D: {args.D}
+    - N (Particles): {args.N+1}
 """)
 
 # BACKEND CONFIG
@@ -221,7 +221,7 @@ def one_experiment(key):
 
     return (means_here, std_devs_here, sample_ess, final_pct, esjd,
             # energy, 
-            init_xs, true_xs, ys, adapted_delta, sample_bs, sample_log_ws, inds)
+            init_xs, true_xs, ys, adapted_delta, sample_bs, inds)
 
 
 final_pct_all = np.empty((args.K, args.M, args.D))
@@ -234,7 +234,7 @@ ys_all = np.empty((args.K, args.D))
 init_xs_all = np.empty((args.K, args.D, args.D))
 esjd_all = np.empty((args.K, args.n_samples - 1, args.M, args.D))
 Bs_all = np.empty((args.K, args.n_samples, args.M, args.D))
-log_ws_all = np.empty((args.K, args.n_samples, args.M, args.D, args.N+1))
+# log_ws_all = np.empty((args.K, args.n_samples, args.M, args.D, args.N+1))
 inds_all = np.empty((args.K, args.D))
 # energy_all = np.empty((args.K, args.n_samples, args.M))
 
@@ -245,7 +245,7 @@ for k, key_k in enumerate(EXPERIMENT_KEYS):
     tic = time.time()
     (means_k, std_k, ess_k, final_pct_k, esjd_vals_k,
      # energy_k,
-     init_xs_k, true_xs_k, ys_k, adapted_delta_k, Bs_k, log_ws_k, inds_k) = one_experiment(key_k)
+     init_xs_k, true_xs_k, ys_k, adapted_delta_k, Bs_k, inds_k) = one_experiment(key_k)
     toc = time.time()
     sample_time_k = (toc - tic) / args.M
 
@@ -261,7 +261,7 @@ for k, key_k in enumerate(EXPERIMENT_KEYS):
     init_xs_all[k, ...] = init_xs_k
     esjd_all[k, ...] = np.asarray(esjd_vals_k)
     Bs_all[k, ...] = Bs_k
-    log_ws_all[k, ...] = log_ws_k
+    # log_ws_all[k, ...] = log_ws_k
     inds_all[k, ...] = inds_k
     # energy_all[k, :] = np.asarray(energy_k)
 
@@ -308,4 +308,4 @@ np.savez_compressed(datapath,
                     esjd_all=esjd_all, 
                     init_xs=init_xs_all, true_xs=true_xs_all, ys=ys_all,
                     delta=adapted_delta_all,
-                    inds=inds_all, Bs=Bs_all, log_ws=log_ws_all)
+                    inds=inds_all, Bs=Bs_all)

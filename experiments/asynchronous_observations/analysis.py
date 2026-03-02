@@ -16,16 +16,15 @@ from jax.scipy.special import logsumexp
 # ARGS PARSING
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--T", dest="T", type=int, default=1_000)
-parser.add_argument("--D", dest="D", type=int, default=10)
+parser.add_argument("--D", dest="D", type=int, default=50)
 parser.add_argument("--K", dest="K", type=int, default=1)
-parser.add_argument("--M", dest="M", type=int, default=3)
+parser.add_argument("--M", dest="M", type=int, default=4)
 
-parser.add_argument("--n-samples", dest="n_samples", type=int, default=25)
-parser.add_argument("--adaptation", dest="adaptation", type=int, default=2_000)
-parser.add_argument("--burnin", dest="burnin", type=int, default=1_000)
+parser.add_argument("--n-samples", dest="n_samples", type=int, default=1_000)
+parser.add_argument("--adaptation", dest="adaptation", type=int, default=0)
+parser.add_argument("--burnin", dest="burnin", type=int, default=3_000)
 
-parser.add_argument("--target", dest="target", type=int, default=75)
+parser.add_argument("--target", dest="target", type=int, default=27)
 
 parser.add_argument("--seed", dest="seed", type=int, default=1234)
 parser.add_argument("--kernel", dest="kernel", type=int, default=KernelType.RW_CSMC)
@@ -88,22 +87,37 @@ def plot_esjd(esjd):
     esjd_i = esjd[args.i]              # (N-1, M, T)
     _, M, T = esjd_i.shape
 
-    esjd_means = esjd_i.mean(axis=0)   # (M, T)
+    sample_mean = esjd_i.mean(axis=0)   # (M, T)
+    chain_mean = sample_mean.mean(axis=0)
+    chain_std = sample_mean.std(axis=0, ddof=1)
+
+    ts = np.arange(T)
 
     plt.figure(figsize=(15, 5))
-    for m in range(M):
-        plt.plot(np.arange(T), esjd_means[m, :], alpha=0.6, label=f"Chain {m}")
-    plt.title("Expected Square Jumping Distance")
+    plt.plot(ts, chain_mean, label="Mean across chains")
+    plt.fill_between(ts, chain_mean - chain_std, chain_mean + chain_std, alpha=0.25, label="±1 std")
+    plt.title("ESJD across chains (mean ± 1 std)")
+    plt.xlabel("t")
+    plt.ylabel("ESJD")
     plt.legend()
-    plt.savefig(f"{PLOTDIR}/esjd_{args.i}.png")    
+    plt.tight_layout()
+    plt.savefig(f"{PLOTDIR}/esjd_mean_std_{args.i}.png")
     plt.close()
+
+    # plt.figure(figsize=(15, 5))
+    # for m in range(M):
+    #     plt.plot(np.arange(T), esjd_means[m, :], alpha=0.6, label=f"Chain {m}")
+    # plt.title("Expected Square Jumping Distance")
+    # plt.legend()
+    # plt.savefig(f"{PLOTDIR}/esjd_{args.i}.png")    
+    # plt.close()
 
 def plot_ess(ess):
     ess_i = ess[args.i]                     # (N, M, T)
     chain_mean_ess = ess_i.mean(axis=1)     # (N, T)
 
     plt.figure(figsize=(15, 5))
-    plt.plot(np.arange(ess.shape[-1]), chain_mean_ess.T, alpha=0.1, color="black")
+    plt.plot(np.arange(ess.shape[-1]), chain_mean_ess.T, alpha=0.01, color="black")
     plt.savefig(f"{PLOTDIR}/ess_{args.i}.png")
     plt.close()
 
