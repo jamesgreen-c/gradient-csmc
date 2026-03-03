@@ -27,8 +27,8 @@ parser.add_argument("--burnin", dest="burnin", type=int, default=3_000)
 parser.add_argument("--target", dest="target", type=int, default=27)
 
 parser.add_argument("--seed", dest="seed", type=int, default=1234)
-parser.add_argument("--kernel", dest="kernel", type=int, default=KernelType.RW_CSMC)
-parser.add_argument("--style", dest="style", type=str, default="na")
+parser.add_argument("--kernel", dest="kernel", type=int, default=KernelType.CSMC)
+parser.add_argument("--style", dest="style", type=str, default="bootstrap")
 
 parser.add_argument("--backward", action='store_true')
 parser.add_argument('--no-backward', dest='backward', action='store_false')

@@ -84,8 +84,8 @@ def get_data(key, sigma, dim, phi: float = 1.0):
     chol_Q = sigma_dt * L
 
     # standard normals for the step noise
-    eps_xs = jax.random.normal(key_zx, (T, dim))      # each row ~ N(0, I)
-    eps_ys = jax.random.normal(key_y, (T,))           # scalar obs noise
+    eps_xs = jax.random.normal(key_zx, (T, dim))            # each row ~ N(0, I)
+    eps_ys = 0.1 * jax.random.normal(key_y, (T,))           # small scalar obs noise
 
     inds = jnp.arange(dim)
 
