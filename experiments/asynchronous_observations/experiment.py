@@ -18,7 +18,7 @@ from gradient_csmc.utils.common import force_move, barker_move, ess
 from gradient_csmc.utils.kalman import sampling, filtering
 from gradient_csmc.utils.resamplings import killing, multinomial
 
-# jax.config.update("jax_enable_x64", False)
+jax.config.update("jax_enable_x64", True)
 # jax.config.update("jax_platform_name", "cpu")
 
 # Adaption config
@@ -35,8 +35,8 @@ parser.add_argument("--D", dest="D", type=int, default=50)
 parser.add_argument("--K", dest="K", type=int, default=1)
 parser.add_argument("--M", dest="M", type=int, default=4)
 
-parser.add_argument("--log-var", dest="log_var", type=float, default=0)
-parser.add_argument("--phi", type=float, default=1.)
+parser.add_argument("--log-var", dest="log_var", type=float, default=-1.5)
+parser.add_argument("--phi", type=float, default=0.9)
 
 parser.add_argument("--delta", dest="delta", type=float,
                     default=1.)
@@ -143,7 +143,7 @@ def tic_fn(arr):
 def one_experiment(key):
     data_key, init_key, adaptation_key, burnin_key, sample_key = jax.random.split(key, 5)
 
-    true_xs, m0, ys, inds, chol_P0, chol_Q = get_data(data_key, SIGMA, args.D)
+    true_xs, m0, ys, inds, chol_P0, chol_Q = get_data(data_key, SIGMA, args.D, PHI)
     # jax.debug.print("True xs shape = {}, ys shape = {}, inds shape = {}", true_xs.shape, ys.shape, inds.shape)
 
     kernel, init, adaptation_loop, experiment_loop = kernel_type.kernel_maker(m0, ys, inds, args.D, PHI, chol_P0, chol_Q, N=args.N,

@@ -3,7 +3,7 @@ import os
 
 from itertools import product
 
-from experiments.scalable_factor_stoch_vol.kernels import KernelType
+from experiments.asynchronous_observations.kernels import KernelType
 from gradient_csmc.utils.printing import ctext
 
 # ARGS PARSING

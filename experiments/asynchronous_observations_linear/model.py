@@ -23,12 +23,49 @@ SEE IF RAO-BLACKWELLISATION SOLVES THE ISSUE
 """
 
 
-def random_corr_chol(key, dim, jitter=1e-6):
-    # SPD -> correlation -> Cholesky
+# def random_corr_chol(key, dim, jitter=1e-6):
+#     # SPD -> correlation -> Cholesky
+#     M = jax.random.normal(key, (dim, dim))
+#     C = M @ M.T + jitter * jnp.eye(dim)      # SPD
+#     d = jnp.sqrt(jnp.diag(C))
+#     R = C / (d[:, None] * d[None, :])        # correlation (diag=1)
+#     L = jnp.linalg.cholesky(R)
+#     return L, R
+
+def random_corr_chol(key, dim, min_eig=1e-2):
+    """
+    Generate a random correlation matrix R with eigenvalues bounded below by `min_eig`,
+    and return its Cholesky factor L such that R = L L^T.
+
+    Notes:
+      - R is SPD and has diag(R)=1.
+      - After enforcing the eigenvalue floor we re-normalize to correlation form.
+      - The final λ_min will be >= min_eig / (max diag scaling), typically close to min_eig.
+    """
     M = jax.random.normal(key, (dim, dim))
-    C = M @ M.T + jitter * jnp.eye(dim)      # SPD
+    C = M @ M.T
+    # make perfectly symmetric (helps numerics)
+    C = 0.5 * (C + C.T)
+
+    # convert to correlation
     d = jnp.sqrt(jnp.diag(C))
-    R = C / (d[:, None] * d[None, :])        # correlation (diag=1)
+    R = C / (d[:, None] * d[None, :])
+    R = 0.5 * (R + R.T)
+
+    # eigenvalue floor
+    w, Q = jnp.linalg.eigh(R)                         # w ascending
+    w = jnp.maximum(w, min_eig)
+    R = (Q * w) @ Q.T                                 # Q diag(w) Q^T
+    R = 0.5 * (R + R.T)
+
+    # re-normalize to correlation (diag=1) after spectral fix
+    d = jnp.sqrt(jnp.diag(R))
+    R = R / (d[:, None] * d[None, :])
+    R = 0.5 * (R + R.T)
+
+    # tiny jitter for Cholesky robustness (doesn't change conditioning materially)
+    R = R + 1e-12 * jnp.eye(dim)
+
     L = jnp.linalg.cholesky(R)
     return L, R
 
@@ -52,7 +89,6 @@ def get_data(key, sigma, dim, phi: float = 1.0):
     # OU discretisation
     A = jnp.exp(-phi * dt)
     sigma_dt = sigma * jnp.sqrt((1.0 - jnp.exp(-2.0 * phi * dt)) / (2.0 * phi))
-    # sigma_dt = sigma * jnp.sqrt((jnp.exp(2.0 * phi * dt) - 1.0) / (2.0 * phi))
     chol_Q = sigma_dt * L
 
     # standard normals for the step noise
