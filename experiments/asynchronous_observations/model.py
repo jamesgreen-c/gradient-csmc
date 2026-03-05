@@ -99,8 +99,8 @@ def random_corr_chol(key, dim, min_eig=1e-2):
     return L, R
 
 
-@partial(jax.jit, static_argnums=(2, 3))
-def get_data(key, sigma, dim, phi: float = 1.0):
+@partial(jax.jit, static_argnums=(1, 2, 3))
+def get_data(key, dim, sigma_x, sigma_y, phi: float = 0.9):
     dt = 1.0 / dim
     T = dim
 
@@ -110,19 +110,19 @@ def get_data(key, sigma, dim, phi: float = 1.0):
     L, R = random_corr_chol(key_corr, dim)
 
     # x0 ~ N(0, sigma^2 R):
-    chol_P0 = sigma * L
+    chol_P0 = sigma_x * L
     m0 = jnp.zeros((dim, ))
     z0 = jax.random.normal(key_x0, (dim,))
     x0 = chol_P0 @ z0
 
     # OU discretisation
     A = jnp.exp(-phi * dt)
-    sigma_dt = sigma * jnp.sqrt((1.0 - jnp.exp(-2.0 * phi * dt)) / (2.0 * phi))
+    sigma_dt = sigma_x * jnp.sqrt((1.0 - jnp.exp(-2.0 * phi * dt)) / (2.0 * phi))
     chol_Q = sigma_dt * L
 
     # standard normals for the step noise
     eps_xs = jax.random.normal(key_zx, (T, dim))            # each row ~ N(0, I)
-    eps_ys = 0.1 * jax.random.normal(key_y, (T,))           # small scalar obs noise
+    eps_ys = sigma_y * jax.random.normal(key_y, (T,))           # small scalar obs noise
 
     inds = jnp.arange(dim)
 
@@ -139,18 +139,19 @@ def get_data(key, sigma, dim, phi: float = 1.0):
     return xs, m0, ys, inds, chol_P0, chol_Q
 
 
-@partial(jnp.vectorize, signature="(n),(),()->()")
-def log_potential(x, y, ind):
+@partial(jnp.vectorize, signature="(n),(),(),()->()")
+def log_potential(x, y, ind, sigma):
     ind = jnp.asarray(ind, dtype=jnp.int32)   # <--- add this
-    val = norm.logpdf(y, x[ind])
+    val = norm.logpdf(y, loc=x[ind], scale=sigma)
     return jnp.sum(val)
 
 
-def log_likelihood(x, y, ind):
-    return jnp.sum(log_potential(x, y, ind))
+def log_likelihood(x, y, ind, sigma):
+    return jnp.sum(log_potential(x, y, ind, sigma))
 
 
 def log_pdf(xs, ys, inds, sigma):
+    # UNUSED
     
     # extract the corresponding dimensions
     xs = xs[..., jnp.arange(xs.shape[-2]), inds]      # (T,)

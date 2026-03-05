@@ -76,7 +76,7 @@ def get_mala_kernel(ys, m0, P0, F, Q, b, N=1, style="marginal", **_kwargs):
     raise NotImplementedError
 
 
-def get_csmc_kernel(m0, ys, dx, phi, chol_P0, chol_Q, N, style="bootstrap", **kwargs):
+def get_csmc_kernel(m0, ys, dx, phi, chol_P0, chol_Q, sigma_y, N, style="bootstrap", **kwargs):
 
     dt = 1 / dx
     A = jnp.exp(-phi * dt)
@@ -100,8 +100,8 @@ def get_csmc_kernel(m0, ys, dx, phi, chol_P0, chol_Q, N, style="bootstrap", **kw
         M0_logpdf = jnp.vectorize(M0_logpdf, signature="(d)->()")
         Mt_logpdf = lambda x_t_m_1, x_t, _params: mvn_logpdf(x_t, A * x_t_m_1, None, chol_inv=_chol_Q_inv, constant=False).sum()
         Mt_logpdf = jnp.vectorize(Mt_logpdf, signature="(d),(d)->()", excluded=(2,))
-        Gamma_0 = lambda x: log_potential(x, ys[0]) + M0_logpdf(x)
-        Gamma_t = lambda x_t_m_1, x_t, _params: log_potential(x_t, _params) + Mt_logpdf(x_t_m_1, x_t, None)
+        Gamma_0 = lambda x: log_potential(x, ys[0], sigma_y) + M0_logpdf(x)
+        Gamma_t = lambda x_t_m_1, x_t, _params: log_potential(x_t, _params, sigma_y) + Mt_logpdf(x_t_m_1, x_t, None)
 
     else:
         raise NotImplementedError(f"Unknown style: {style}, choose from 'bootstrap'")
@@ -134,7 +134,7 @@ def get_mala_csmc_kernel(ys, m0, P0, F, Q, b, N, style="marginal", **kwargs):
     raise NotImplementedError
 
 
-def get_rw_csmc_kernel(m0, ys, dx, phi, chol_P0, chol_Q, N, **kwargs):
+def get_rw_csmc_kernel(m0, ys, dx, phi, chol_P0, chol_Q, sigma_y, N, **kwargs):
     kwargs.pop("style")
     dt = 1 / dx
     A = jnp.exp(-phi * dt)
@@ -144,12 +144,12 @@ def get_rw_csmc_kernel(m0, ys, dx, phi, chol_P0, chol_Q, N, **kwargs):
 
     @partial(jnp.vectorize, signature='(d)->()')
     def Gamma_0(x):
-        return log_potential(x, ys[0]) + mvn_logpdf(x, m0, None, chol_inv=_chol_P0_inv, constant=False)
+        return log_potential(x, ys[0], sigma_y) + mvn_logpdf(x, m0, None, chol_inv=_chol_P0_inv, constant=False)
 
     @partial(jnp.vectorize, signature='(d),(d),(k)->()')
     def Gamma_t(x_t_m_1, x_t, _params):
         x_pred = A * x_t_m_1
-        return log_potential(x_t, _params) + mvn_logpdf(x_t, x_pred, None, chol_inv=_chol_Q_inv, constant=False)
+        return log_potential(x_t, _params, sigma_y) + mvn_logpdf(x_t, x_pred, None, chol_inv=_chol_Q_inv, constant=False)
 
     Gamma_t_plus_params = Gamma_t, ys[1:]
 

@@ -42,7 +42,7 @@ args = parser.parse_args()
 
 TARGET_ALPHA = args.target / 100 
 kernel_type = KernelType(args.kernel)
-Ns = [31, 64, 128, 256, 512, 1024, 2048, 4096]
+Ns = [31, 64, 128, 256,] #  512, 1024, 2048, 4096]
 
 def load_data(N: int):
     """ Load data for a given number of particles N"""

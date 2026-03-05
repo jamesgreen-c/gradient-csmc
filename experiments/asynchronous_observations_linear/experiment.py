@@ -84,9 +84,9 @@ N_LAGS = min(args.n_samples - 1, 1_000)
 
 
 print(f"""
-###############################################
-#    ASYNCHRONOUS OBSERVATIONS EXPERIMENT     #
-###############################################
+######################################################
+#    ASYNCHRONOUS OBSERVATIONS LINEAR EXPERIMENT     #
+######################################################
 Configuration:
     - T: {args.D}
     - kernel: {KernelType(args.kernel).name}
@@ -131,6 +131,7 @@ else:
 kernel_type = KernelType(args.kernel)
 DELTA = kernel_type.shape_delta(DELTA, args.D)
 SIGMA = 10 ** (args.log_var / 2)
+SIGMA_Y = 0.1
 PHI = args.phi
 
 
@@ -143,10 +144,10 @@ def tic_fn(arr):
 def one_experiment(key):
     data_key, init_key, adaptation_key, burnin_key, sample_key = jax.random.split(key, 5)
 
-    true_xs, m0, ys, chol_P0, chol_Q = get_data(data_key, SIGMA, args.D, PHI)
+    true_xs, m0, ys, chol_P0, chol_Q = get_data(data_key, args.D, SIGMA, SIGMA_Y, PHI)
     # jax.debug.print("True xs shape = {}, m0 shape = {}, ys shape = {}", true_xs.shape, m0.shape, ys.shape)
 
-    kernel, init, adaptation_loop, experiment_loop = kernel_type.kernel_maker(m0, ys, args.D, PHI, chol_P0, chol_Q, N=args.N,
+    kernel, init, adaptation_loop, experiment_loop = kernel_type.kernel_maker(m0, ys, args.D, PHI, chol_P0, chol_Q, SIGMA_Y, N=args.N,
                                                                               resampling_func=resampling_fn,
                                                                               backward=args.backward,
                                                                               ancestor_move_func=last_step_fn,
@@ -157,7 +158,7 @@ def one_experiment(key):
     adaptation_loop = jax.jit(adaptation_loop, static_argnums=(2, 5, 6), static_argnames=("window_size", "target_stat"))
     experiment_loop = jax.jit(experiment_loop, static_argnums=(2, 3, 4, 5))
 
-    csmc_kernel, csmc_init, *_ = get_csmc_kernel(m0, ys, args.D, PHI, chol_P0, chol_Q, N=args.N, resampling_func=resampling_fn,
+    csmc_kernel, csmc_init, *_ = get_csmc_kernel(m0, ys, args.D, PHI, chol_P0, chol_Q, SIGMA_Y, N=args.N, resampling_func=resampling_fn,
                                                  backward=True, ancestor_move_func=None, conditional=False)
     
     # This looks like it's using the true data, but it's not (see, the conditional=False above)
