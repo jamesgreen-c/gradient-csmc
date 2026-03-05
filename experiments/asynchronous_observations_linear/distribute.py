@@ -1,7 +1,6 @@
 import argparse
 import os 
-
-from itertools import product
+from datetime import datetime
 
 from experiments.asynchronous_observations_linear.kernels import KernelType
 from gradient_csmc.utils.printing import ctext
@@ -100,6 +99,6 @@ for n in Ns:
         continue
     
     exec_str = build_cmd(script="experiment.py", N=n)
-    print("\nExecuting:", ctext(exec_str, "green"))
+    print(f"\n({datetime.now()}) Executing:", ctext(exec_str, "green"))
     os.system(exec_str)
 
