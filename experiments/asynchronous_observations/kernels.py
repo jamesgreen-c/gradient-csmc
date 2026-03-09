@@ -171,3 +171,44 @@ def get_rw_csmc_kernel(m0, ys, inds, dx, phi, chol_P0, chol_Q, sigma_y, N, **kwa
                                         initial_delta, n_steps, verbose, **_kwargs)
 
     return kernel, init, adaptation_routine, sampling_routine_fn
+
+
+def get_bpf_kernel(m0, ys, inds, dx, phi, chol_P0, chol_Q, sigma_y, N, style="bootstrap", **kwargs):
+    """
+    Only perform the forward pass
+    """
+
+    dt = 1 / dx
+    A = jnp.exp(-phi * dt)
+
+    _chol_P0_inv = solve_triangular(chol_P0, jnp.eye(m0.shape[0]), lower=True)
+    _chol_Q_inv = solve_triangular(chol_Q, jnp.eye(m0.shape[0]), lower=True)
+
+    if style == "bootstrap":
+        def M0_rvs(key, _):
+            eps = jax.random.normal(key, (N + 1, dx))
+            return m0 + (eps @ chol_P0.T)
+
+        def Mt_rvs(key, x_t_m_1, _):
+            eps = jax.random.normal(key, (N + 1, dx))
+            return A * x_t_m_1 + eps @ chol_Q.T
+
+        M0_logpdf = lambda x: mvn_logpdf(x, m0, None, chol_inv=_chol_P0_inv, constant=False)
+        M0_logpdf = jnp.vectorize(M0_logpdf, signature="(d)->()")
+        Mt_logpdf = lambda x_t_m_1, x_t, _params: mvn_logpdf(x_t, A * x_t_m_1, None, chol_inv=_chol_Q_inv, constant=False).sum()
+        Mt_logpdf = jnp.vectorize(Mt_logpdf, signature="(d),(d)->()", excluded=(2,))
+        Gamma_0 = lambda x: log_potential(x, ys[0], inds[0], sigma_y) + M0_logpdf(x)
+        Gamma_t = lambda x_t_m_1, x_t, _params: log_potential(x_t, _params[0], _params[1], sigma_y) + Mt_logpdf(x_t_m_1, x_t, None)
+
+    else:
+        raise NotImplementedError(f"Unknown style: {style}, choose from 'bootstrap'")
+
+    M0 = M0_rvs, M0_logpdf
+    Mt = Mt_rvs, Mt_logpdf, ys[1:]
+    Gamma_t_plus_params = Gamma_t, (ys[1:], inds[1:])
+
+    kernel = lambda key, state, *_: csmc.forward_pass(key, state[0], state[1], M0, Gamma_0, Mt, Gamma_t_plus_params, N=N,
+                                                **kwargs)
+    
+    init = lambda x: (x, jnp.zeros((x.shape[0],), dtype=int))
+    return kernel, init

@@ -20,15 +20,16 @@ parser.add_argument("--i", type=int, default=0)
 args = parser.parse_args()
 
 
-def plot_filter_distribution(true_xs, ys, dists, dirpath):
+def plot_filter_distribution(true_xs, ys, dists, joint_dists, dirpath):
     true_xs_i = true_xs[args.i]     # (T, D)
     ys_i = ys[args.i]               # (T,)
     dists_i = dists[args.i]         # (T, 2)
+    joint_dists_i = joint_dists[args.i]   # (T, D, 2)
 
     T, dx = true_xs_i.shape
     inds_i = np.arange(dx)
     
-    dim = min(10, dx)
+    dim = min(100, dx)
     fig, ax = plt.subplots(dim, 1, figsize=(15, 5*dim))
     ax = np.atleast_1d(ax)
     for d in range(dim):
@@ -46,11 +47,27 @@ def plot_filter_distribution(true_xs, ys, dists, dirpath):
             yerr=std,
             fmt="o",
             capsize=5,
+            capthick=3,
+            elinewidth=3,
+            markersize=9,
+            alpha=0.9,
+            label="Filter mean ±1 std",
+        )
+
+        joint_dist_d = joint_dists_i[d, d, :]
+        joint_mean = joint_dist_d[0]
+        joint_std = joint_dist_d[1]
+        ax[d].errorbar(
+            d,
+            joint_mean,
+            yerr=joint_std,
+            fmt="o",
+            capsize=5,
             capthick=1.5,
             elinewidth=1.5,
             markersize=6,
             alpha=0.9,
-            label="Filter mean ±1 std",
+            label="Joint filter mean ±1 std",
         )
 
         ax[d].plot(np.arange(T), true_xs_i[..., d], color="black", label="Truth")
@@ -81,4 +98,4 @@ def load_data(N: int):
 
 
 data, dirpath = load_data(args.N)
-plot_filter_distribution(data["true_xs"], data["ys"], data["dists"], dirpath)
+plot_filter_distribution(data["true_xs"], data["ys"], data["dists"], data["joint_dists"], dirpath)

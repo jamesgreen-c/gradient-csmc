@@ -22,7 +22,7 @@ import numpy as np
 
 from functools import partial
 
-from experiments.asynchronous_observations.kernels import KernelType, get_csmc_kernel
+from experiments.asynchronous_observations.kernels import KernelType, get_bpf_kernel
 from experiments.asynchronous_observations.model import get_data, log_potential
 
 from gradient_csmc.utils.common import force_move, barker_move, ess
@@ -33,6 +33,7 @@ from gradient_csmc.utils.prior import sample as prior_sample
 
 from jax.scipy.linalg import solve_triangular
 from jax.scipy.stats import norm
+from jax.scipy.special import logsumexp
 
 
 jax.config.update("jax_enable_x64", True)
@@ -226,9 +227,9 @@ def one_experiment(key):
     """
 
     """
-    data_key, *_ = jax.random.split(key, 5)
+    data_key, init_key, *_ = jax.random.split(key, 5)
 
-    true_xs, m0, ys, *_ = get_data(data_key, args.D, SIGMA, SIGMA_Y, PHI)
+    true_xs, m0, ys, inds, chol_P0, chol_Q = get_data(data_key, args.D, SIGMA, SIGMA_Y, PHI)
     # jax.debug.print("True xs shape = {}, ys shape = {}, inds shape = {}", true_xs.shape, ys.shape, inds.shape)
     
     dx = args.D
@@ -282,25 +283,48 @@ def one_experiment(key):
         return dists
     
     dists_ = get_distributions(key)
-    return true_xs, dists_, ys
+
+    #################################################
+    #   Run single BPF to compare independent PFs   #
+    # ###############################################
+    bpf_kernel, bpf_init, *_ = get_bpf_kernel(m0, ys, inds, args.D, PHI, chol_P0, chol_Q, SIGMA_Y,
+                                              N=args.N, 
+                                              resampling_func=resampling_fn,
+                                              conditional=False)
+    _, _, _, _, log_ws, xs = bpf_kernel(init_key, bpf_init(true_xs), None)
+    # jax.debug.print("log ws shape: {}, xs shape: {}", log_ws.shape, xs.shape)
+
+    # calculate filter distribution
+    log_ws = log_ws - logsumexp(log_ws, axis=1, keepdims=True)
+    ws = jnp.exp(log_ws)
+    means = jnp.sum(ws[:, :, None] * xs, axis=1)
+    vars_ = jnp.sum(ws[:, :, None] * (xs - means[:, None, :]) ** 2, axis=1)
+    stds = jnp.sqrt(vars_)
+    joint_dists = jnp.stack([means, stds], axis=-1)
+    # jax.debug.print("joint dists shape: {}",  joint_dists.shape)
+
+    return true_xs, dists_, ys, joint_dists
 
 true_xs_all = np.empty((args.K, args.D, args.D))
 dists_all = np.empty((args.K, args.D, 2))
 ys_all = np.empty((args.K, args.D))
+joint_dists_all = np.empty((args.K, args.D, args.D, 2))
 
 
 for k, key_k in enumerate(EXPERIMENT_KEYS):
     print(f"Running experiment {k + 1}/{args.K}")
-    true_xs_k, dists_k, ys_k = one_experiment(key_k)
+    true_xs_k, dists_k, ys_k, joint_dists_k = one_experiment(key_k)
 
     true_xs_all[k, ...] = true_xs_k
     ys_all[k, ...] = ys_k
     dists_all[k, ...] = dists_k
+    joint_dists_all[k, ...] = joint_dists_k
 
     print(f"""
     - True Xs (k) shape: {true_xs_k.shape}
     - Ys (k) shape: {ys_k.shape}
     - Dists (k) shape: {dists_k.shape}
+    - Joint Dists (k): {joint_dists_k.shape}
 """)
     print()
 
@@ -323,5 +347,6 @@ np.savez_compressed(
     datapath, 
     true_xs=true_xs_all,
     ys=ys_all,
-    dists=dists_all
+    dists=dists_all,
+    joint_dists=joint_dists_all
 )
