@@ -87,7 +87,7 @@ def get_csmc_kernel(m0, ys, inds, dx, phi, chol_P0, chol_Q, sigma_y, N, style="b
     if style == "bootstrap":
         def M0_rvs(key, _):
             eps = jax.random.normal(key, (N + 1, dx))
-            return eps @ chol_P0.T
+            return m0 + (eps @ chol_P0.T)
 
         def Mt_rvs(key, x_t_m_1, _):
             eps = jax.random.normal(key, (N + 1, dx))
