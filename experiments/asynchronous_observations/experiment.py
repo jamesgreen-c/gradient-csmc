@@ -4,18 +4,13 @@ import time
 
 import jax
 import jax.numpy as jnp
-import matplotlib.pyplot as plt
 import numpy as np
-import tqdm
-
-import tensorflow_probability.substrates.jax as tfp
 
 from functools import partial
 
 from experiments.asynchronous_observations.kernels import KernelType, get_csmc_kernel
-from experiments.asynchronous_observations.model import get_data, log_pdf
+from experiments.asynchronous_observations.model import get_data
 from gradient_csmc.utils.common import force_move, barker_move, ess
-from gradient_csmc.utils.kalman import sampling, filtering
 from gradient_csmc.utils.resamplings import killing, multinomial
 
 jax.config.update("jax_enable_x64", True)
