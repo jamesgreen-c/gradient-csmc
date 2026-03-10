@@ -26,7 +26,7 @@ from experiments.asynchronous_observations.kernels import KernelType, get_bpf_ke
 from experiments.asynchronous_observations.model import get_data, log_potential
 
 from gradient_csmc.utils.common import force_move, barker_move, ess
-from gradient_csmc.utils.resamplings import killing, multinomial
+from gradient_csmc.utils.resamplings import killing, multinomial, dynamic
 from gradient_csmc.utils.resamplings import normalize
 from gradient_csmc.utils.math import mvn_logpdf
 from gradient_csmc.utils.prior import sample as prior_sample
@@ -66,6 +66,10 @@ parser.add_argument("--adaptation", dest="adaptation", type=int, default=0)
 parser.add_argument("--burnin", dest="burnin", type=int, default=3_000)
 parser.add_argument("--delta-init", dest="delta_init", type=float,
                      default=10 ** (0.5 * (np.log10(MIN_DELTA) + np.log10(MAX_DELTA))))
+
+parser.add_argument("--dynamic", action="store_true")
+parser.add_argument("--threshold", type=float, default=0.5)
+parser.set_defaults(dynamic=False)
 
 parser.add_argument("--target", dest="target", type=int, default=27)
 parser.add_argument("--target-stat", dest='target_stat', type=str, default="mean")
@@ -123,11 +127,20 @@ else:
     DELTA = args.delta
 
 if args.resampling == "killing":
-    resampling_fn = killing
+    resampling_func = killing
 elif args.resampling == "multinomial":
-    resampling_fn = multinomial
+    resampling_func = multinomial
 else:
     raise ValueError(f"Unknown resampling {args.resampling}")
+
+if args.dynamic:
+    assert args.threshold is not None, "If using dynamic sampling, please provide a threshold for the ESS"
+    def resampling_fn(key, weights, i, j, conditional):
+        return dynamic(resampling_func, args.threshold, key, weights, i, j, conditional)
+    # resampling_fn = jax.jit(closure)
+else:
+
+    resampling_fn = resampling_func
 
 if args.last_step == "forced":
     last_step_fn = force_move
@@ -305,11 +318,11 @@ def one_experiment(key):
 
     return true_xs, dists_, ys, joint_dists
 
+
 true_xs_all = np.empty((args.K, args.D, args.D))
 dists_all = np.empty((args.K, args.D, 2))
 ys_all = np.empty((args.K, args.D))
 joint_dists_all = np.empty((args.K, args.D, args.D, 2))
-
 
 for k, key_k in enumerate(EXPERIMENT_KEYS):
     print(f"Running experiment {k + 1}/{args.K}")
@@ -331,10 +344,11 @@ for k, key_k in enumerate(EXPERIMENT_KEYS):
 if not os.path.exists("if-results"):
     os.mkdir("if-results")
 
-experiment_name = "D={},N={},seed={}"
+experiment_name = "D={},N={},dynamic={},seed={}"
 experiment_name = experiment_name.format(
-    args.D, 
-    args.N, 
+    args.D,
+    args.N,
+    args.dynamic,
     args.seed
 )
 
