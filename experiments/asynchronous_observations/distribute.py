@@ -66,7 +66,7 @@ def results_exist(*, N) -> bool:
     Mirror experiment.py's experiment_name + datapath convention and check if results already exist.
     """
 
-    experiment_name = "kernel={},s={},b={},a={},M={},T={},D={},N={},style={},target={:.2f},res={},back={},seed={}"
+    experiment_name = "kernel={},s={},b={},a={},M={},T={},D={},N={},style={},target={:.2f},res={},back={},dynamic={},seed={}"
     experiment_name = experiment_name.format(
         kernel_type.name,
         args.n_samples,
@@ -80,6 +80,7 @@ def results_exist(*, N) -> bool:
         TARGET_ALPHA, 
         args.resampling,
         args.backward,
+        args.dynamic,
         args.seed
     )
 
