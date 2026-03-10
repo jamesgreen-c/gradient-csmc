@@ -288,7 +288,7 @@ Results:
 if not os.path.exists("results"):
     os.mkdir("results")
 
-experiment_name = "kernel={},s={},b={},a={},M={},T={},D={},N={},style={},target={:.2f},res={},back={},seed={}"
+experiment_name = "kernel={},s={},b={},a={},M={},T={},D={},N={},style={},target={:.2f},res={},back={},dynamic={},seed={}"
 experiment_name = experiment_name.format(
     kernel_type.name,
     args.n_samples,
@@ -302,6 +302,7 @@ experiment_name = experiment_name.format(
     TARGET_ALPHA, 
     args.resampling,
     args.backward,
+    args.dynamic,
     args.seed
 )
 
