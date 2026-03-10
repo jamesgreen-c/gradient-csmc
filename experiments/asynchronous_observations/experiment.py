@@ -11,7 +11,7 @@ from functools import partial
 from experiments.asynchronous_observations.kernels import KernelType, get_csmc_kernel
 from experiments.asynchronous_observations.model import get_data
 from gradient_csmc.utils.common import force_move, barker_move, ess
-from gradient_csmc.utils.resamplings import killing, multinomial
+from gradient_csmc.utils.resamplings import killing, multinomial, dynamic
 
 jax.config.update("jax_enable_x64", True)
 # jax.config.update("jax_platform_name", "cpu")
@@ -43,6 +43,10 @@ parser.add_argument("--adaptation", dest="adaptation", type=int, default=0)
 parser.add_argument("--burnin", dest="burnin", type=int, default=3_000)
 parser.add_argument("--delta-init", dest="delta_init", type=float,
                      default=10 ** (0.5 * (np.log10(MIN_DELTA) + np.log10(MAX_DELTA))))
+
+parser.add_argument("--dynamic", action="store_true")
+parser.add_argument("--threshold", type=float, default=0.5)
+parser.set_defaults(dynamic=False)
 
 parser.add_argument("--target", dest="target", type=int, default=27)
 parser.add_argument("--target-stat", dest='target_stat', type=str, default="mean")
@@ -110,11 +114,19 @@ else:
     DELTA = args.delta
 
 if args.resampling == "killing":
-    resampling_fn = killing
+    resampling_func = killing
 elif args.resampling == "multinomial":
-    resampling_fn = multinomial
+    resampling_func = multinomial
 else:
     raise ValueError(f"Unknown resampling {args.resampling}")
+
+if args.dynamic:
+    assert args.threshold is not None, "If using dynamic sampling, please provide a threshold for the ESS"
+    def resampling_fn(key, weights, i, j, conditional):
+        return dynamic(resampling_func, args.threshold, key, weights, i, j, conditional)
+else:
+
+    resampling_fn = resampling_func
 
 if args.last_step == "forced":
     last_step_fn = force_move
