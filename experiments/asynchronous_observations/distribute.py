@@ -23,6 +23,9 @@ parser.add_argument("--seed", dest="seed", type=int, default=1234)
 parser.add_argument("--kernel", dest="kernel", type=int, default=KernelType.CSMC)
 parser.add_argument("--style", dest="style", type=str, default="bootstrap")
 
+parser.add_argument("--dynamic", action="store_true")
+parser.set_defaults(dynamic=False)
+
 parser.add_argument("--backward", action='store_true')
 parser.add_argument('--no-backward', dest='backward', action='store_false')
 parser.set_defaults(backward=True)
@@ -91,6 +94,8 @@ def build_cmd(script: str, N) -> str:
         f"--N {N} --adaptation {args.adaptation} --burnin {args.burnin} --n-samples {args.n_samples} "
         f"--M {args.M} --K {args.K} "
     )
+    if args.dynamic:
+        cmd = cmd + "--dynamic"
     return cmd 
 
 for n in Ns:
