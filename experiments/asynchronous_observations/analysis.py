@@ -34,6 +34,9 @@ parser.add_argument("--backward", action='store_true')
 parser.add_argument('--no-backward', dest='backward', action='store_false')
 parser.set_defaults(backward=True)
 
+parser.add_argument("--dynamic", action="store_true")
+parser.set_defaults(dynamic=False)
+
 parser.add_argument("--resampling", dest='resampling', type=str, default="multinomial")
 parser.add_argument("--N", dest="N", type=int, default=31)  # total number of particles is N + 1
 
@@ -45,7 +48,7 @@ args = parser.parse_args()
 TARGET_ALPHA = args.target / 100 
 kernel_type = KernelType(args.kernel)
 
-experiment_name = "kernel={},s={},b={},a={},M={},T={},D={},N={},style={},target={:.2f},res={},back={},seed={}"
+experiment_name = "kernel={},s={},b={},a={},M={},T={},D={},N={},style={},target={:.2f},res={},back={},dynamic={},seed={}"
 experiment_name = experiment_name.format(
     kernel_type.name,
     args.n_samples,
@@ -59,6 +62,7 @@ experiment_name = experiment_name.format(
     TARGET_ALPHA, 
     args.resampling,
     args.backward,
+    args.dynamic,
     args.seed
 )
 

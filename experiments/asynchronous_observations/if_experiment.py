@@ -137,9 +137,7 @@ if args.dynamic:
     assert args.threshold is not None, "If using dynamic sampling, please provide a threshold for the ESS"
     def resampling_fn(key, weights, i, j, conditional):
         return dynamic(resampling_func, args.threshold, key, weights, i, j, conditional)
-    # resampling_fn = jax.jit(closure)
 else:
-
     resampling_fn = resampling_func
 
 if args.last_step == "forced":

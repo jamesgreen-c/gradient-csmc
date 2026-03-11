@@ -125,7 +125,6 @@ if args.dynamic:
     def resampling_fn(key, weights, i, j, conditional):
         return dynamic(resampling_func, args.threshold, key, weights, i, j, conditional)
 else:
-
     resampling_fn = resampling_func
 
 if args.last_step == "forced":
